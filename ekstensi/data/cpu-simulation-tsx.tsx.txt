@@ -1,0 +1,517 @@
+import React, { useState } from 'react';
+import { ChevronDown, ChevronRight, Cpu, Database, Zap, Activity, ArrowRight, Circle, Square } from 'lucide-react';
+
+// Definisi komprehensif untuk setiap kelas dengan metadata lengkap
+const CPUArchitectureClasses = {
+  // Layer 1: Core Processing Components
+  coreProcessing: {
+    title: "Layer Inti Pemrosesan",
+    description: "Komponen fundamental yang mengeksekusi instruksi dan melakukan komputasi",
+    classes: {
+      CPU: {
+        name: "CPU",
+        purpose: "Kelas orchestrator utama yang mengintegrasikan seluruh subsistem",
+        responsibilities: ["Koordinasi eksekusi instruksi", "Manajemen siklus fetch-decode-execute", "Integrasi semua komponen"],
+        dependencies: ["ControlUnit", "ALU", "RegisterFile", "Memory", "Cache"],
+        interfaces: ["clockTick()", "executeInstruction()", "getSystemStatus()"],
+        dataFlow: "Menerima input dari semua komponen, mengoordinasikan alur data"
+      },
+      ALU: {
+        name: "Arithmetic Logic Unit",
+        purpose: "Unit komputasi aritmatika dan operasi logika",
+        responsibilities: ["Operasi matematika (ADD, SUB, MUL, DIV)", "Operasi logika (AND, OR, XOR)", "Update flag status"],
+        dependencies: ["Register", "DataPath"],
+        interfaces: ["execute(operation, operand1, operand2)", "getFlags()"],
+        dataFlow: "Menerima operand dari register, mengembalikan hasil ke register"
+      },
+      ControlUnit: {
+        name: "Control Unit",
+        purpose: "Pengatur sinyal kontrol dan koordinasi operasi CPU",
+        responsibilities: ["Generate control signals", "Manage execution phases", "Coordinate component interactions"],
+        dependencies: ["Decoder", "Clock", "InterruptController"],
+        interfaces: ["generateControlSignals()", "setPhase()", "handleInterrupt()"],
+        dataFlow: "Mengirim sinyal kontrol ke semua komponen operasional"
+      }
+    }
+  },
+
+  // Layer 2: Memory Hierarchy
+  memoryHierarchy: {
+    title: "Hierarki Sistem Memori",
+    description: "Struktur berlapis untuk penyimpanan dan akses data dengan performa optimal",
+    classes: {
+      RegisterFile: {
+        name: "Register File",
+        purpose: "Penyimpanan data tercepat dengan akses langsung",
+        responsibilities: ["Store working data", "Provide immediate access", "Support parallel read/write"],
+        dependencies: ["Register"],
+        interfaces: ["read(index)", "write(index, value)", "getRegisterStatus()"],
+        dataFlow: "Interface langsung dengan ALU dan DataPath"
+      },
+      Cache: {
+        name: "Cache Memory",
+        purpose: "Memori cache generik dengan algoritma LRU",
+        responsibilities: ["Cache frequently accessed data", "Reduce memory access latency", "Implement replacement policy"],
+        dependencies: ["Memory"],
+        interfaces: ["read(address)", "write(address, value)", "getHitRatio()"],
+        dataFlow: "Buffer antara CPU dan memori utama"
+      },
+      InstructionCache: {
+        name: "Instruction Cache",
+        purpose: "Cache khusus untuk penyimpanan instruksi",
+        responsibilities: ["Cache decoded instructions", "Reduce instruction fetch latency", "Support prefetching"],
+        dependencies: ["Cache", "Memory"],
+        interfaces: ["fetchInstruction(address)", "invalidate(address)"],
+        dataFlow: "Menyediakan instruksi ke Instruction Register"
+      },
+      DataCache: {
+        name: "Data Cache",
+        purpose: "Cache khusus untuk operasi data",
+        responsibilities: ["Cache data operands", "Support write-through/write-back", "Maintain cache coherency"],
+        dependencies: ["Cache", "Memory"],
+        interfaces: ["loadData(address)", "storeData(address, value)"],
+        dataFlow: "Interface antara ALU dan sistem memori"
+      },
+      Memory: {
+        name: "Main Memory",
+        purpose: "Penyimpanan utama sistem dengan kapasitas besar",
+        responsibilities: ["Store program and data", "Provide addressable storage", "Support virtual memory"],
+        dependencies: ["MMU"],
+        interfaces: ["read(address)", "write(address, value)", "allocate(size)"],
+        dataFlow: "Backing store untuk seluruh sistem cache"
+      },
+      MMU: {
+        name: "Memory Management Unit",
+        purpose: "Pengelola alamat virtual dan proteksi memori",
+        responsibilities: ["Virtual address translation", "Memory protection", "Page table management"],
+        dependencies: ["Memory"],
+        interfaces: ["translateAddress(virtual)", "mapPage(virtual, physical)"],
+        dataFlow: "Translasi alamat untuk semua akses memori"
+      }
+    }
+  },
+
+  // Layer 3: Instruction Processing Pipeline
+  instructionPipeline: {
+    title: "Pipeline Pemrosesan Instruksi",
+    description: "Komponen yang menangani alur instruksi dari fetch hingga completion",
+    classes: {
+      ProgramCounter: {
+        name: "Program Counter",
+        purpose: "Penunjuk alamat instruksi yang akan dieksekusi",
+        responsibilities: ["Track current instruction address", "Support branching", "Handle subroutine calls"],
+        dependencies: ["BranchPredictor"],
+        interfaces: ["increment()", "jump(address)", "push()", "pop()"],
+        dataFlow: "Menentukan alamat untuk instruction fetch"
+      },
+      InstructionRegister: {
+        name: "Instruction Register",
+        purpose: "Penyimpan instruksi yang sedang diproses",
+        responsibilities: ["Hold current instruction", "Provide instruction to decoder", "Support pipeline stages"],
+        dependencies: ["InstructionCache"],
+        interfaces: ["load(instruction)", "getInstruction()", "clear()"],
+        dataFlow: "Buffer antara fetch dan decode stage"
+      },
+      Instruction: {
+        name: "Instruction",
+        purpose: "Representasi struktur instruksi mesin",
+        responsibilities: ["Encapsulate instruction format", "Support different instruction types", "Provide instruction metadata"],
+        dependencies: [],
+        interfaces: ["getOpcode()", "getOperands()", "toString()"],
+        dataFlow: "Data structure yang mengalir melalui pipeline"
+      },
+      Decoder: {
+        name: "Instruction Decoder",
+        purpose: "Pengurai instruksi menjadi sinyal kontrol",
+        responsibilities: ["Parse instruction format", "Generate micro-operations", "Identify resource requirements"],
+        dependencies: ["Instruction"],
+        interfaces: ["decode(instruction)", "getMicroOps()", "getResourceNeeds()"],
+        dataFlow: "Mengkonversi instruksi menjadi control signals"
+      },
+      Pipeline: {
+        name: "Execution Pipeline",
+        purpose: "Implementasi pipeline eksekusi multi-stage",
+        responsibilities: ["Manage pipeline stages", "Handle hazards", "Support out-of-order execution"],
+        dependencies: ["ControlUnit", "BranchPredictor"],
+        interfaces: ["advance()", "stall()", "flush()", "insertInstruction()"],
+        dataFlow: "Mengkoordinasikan alur instruksi melalui stages"
+      }
+    }
+  },
+
+  // Layer 4: Performance and Optimization
+  optimization: {
+    title: "Optimasi dan Monitoring Performa",
+    description: "Komponen untuk meningkatkan efisiensi dan monitoring sistem",
+    classes: {
+      BranchPredictor: {
+        name: "Branch Predictor",
+        purpose: "Prediksi arah percabangan untuk optimasi pipeline",
+        responsibilities: ["Predict branch outcomes", "Maintain prediction history", "Reduce pipeline stalls"],
+        dependencies: ["PerformanceCounter"],
+        interfaces: ["predict(address)", "update(address, taken)", "getAccuracy()"],
+        dataFlow: "Memberikan prediksi ke Pipeline dan ProgramCounter"
+      },
+      PerformanceCounter: {
+        name: "Performance Counter",
+        purpose: "Monitor dan analisis performa sistem CPU",
+        responsibilities: ["Track execution metrics", "Calculate performance ratios", "Provide profiling data"],
+        dependencies: ["Clock"],
+        interfaces: ["incrementCounter(type)", "getMetrics()", "reset()"],
+        dataFlow: "Mengumpulkan data dari semua komponen untuk analisis"
+      },
+      Clock: {
+        name: "System Clock",
+        purpose: "Generator sinyal clock dan sinkronisasi sistem",
+        responsibilities: ["Generate clock signals", "Synchronize operations", "Support clock domains"],
+        dependencies: [],
+        interfaces: ["tick()", "getFrequency()", "adjustFrequency()"],
+        dataFlow: "Menyediakan sinyal sinkronisasi ke seluruh sistem"
+      }
+    }
+  },
+
+  // Layer 5: System Services
+  systemServices: {
+    title: "Layanan Sistem dan I/O",
+    description: "Komponen untuk menangani layanan sistem dan interaksi eksternal",
+    classes: {
+      InterruptController: {
+        name: "Interrupt Controller",
+        purpose: "Pengelola sistem interupsi dan event handling",
+        responsibilities: ["Manage interrupt priorities", "Queue interrupt requests", "Coordinate interrupt handling"],
+        dependencies: ["ExceptionHandler"],
+        interfaces: ["addInterrupt(type, priority)", "getNextInterrupt()", "maskInterrupt()"],
+        dataFlow: "Mengirim sinyal interupsi ke ControlUnit"
+      },
+      ExceptionHandler: {
+        name: "Exception Handler",
+        purpose: "Penanganan eksepsi dan error recovery",
+        responsibilities: ["Handle system exceptions", "Manage exception vectors", "Support error recovery"],
+        dependencies: ["Memory"],
+        interfaces: ["handleException(type)", "registerHandler()", "getExceptionInfo()"],
+        dataFlow: "Mengambil alih kontrol saat terjadi eksepsi"
+      },
+      FPU: {
+        name: "Floating Point Unit",
+        purpose: "Unit pemrosesan operasi floating point",
+        responsibilities: ["Floating point arithmetic", "Support IEEE 754 standard", "Handle special cases"],
+        dependencies: ["Register", "ALU"],
+        interfaces: ["executeFloat(operation, operands)", "getFloatFlags()"],
+        dataFlow: "Parallel processing unit untuk operasi floating point"
+      }
+    }
+  },
+
+  // Layer 6: Data Flow Management
+  dataFlow: {
+    title: "Manajemen Alur Data",
+    description: "Komponen yang mengatur perpindahan dan transformasi data",
+    classes: {
+      DataPath: {
+        name: "Data Path",
+        purpose: "Jalur fisik untuk perpindahan data antar komponen",
+        responsibilities: ["Route data between components", "Support multiple data buses", "Handle data conflicts"],
+        dependencies: ["Register", "ALU", "Memory"],
+        interfaces: ["setBus(name, value)", "getBus(name)", "routeData()"],
+        dataFlow: "Infrastruktur fisik untuk semua transfer data"
+      },
+      Register: {
+        name: "Register",
+        purpose: "Unit penyimpanan data individual dengan akses cepat",
+        responsibilities: ["Store single data word", "Support atomic operations", "Provide status flags"],
+        dependencies: [],
+        interfaces: ["setValue(value)", "getValue()", "getSize()"],
+        dataFlow: "Building block untuk RegisterFile dan storage"
+      }
+    }
+  }
+};
+
+// Komponen untuk menampilkan koneksi antar kelas
+const ConnectionDiagram = () => {
+  const connections = [
+    { from: "CPU", to: ["ControlUnit", "ALU", "RegisterFile", "Memory", "Clock"], type: "primary" },
+    { from: "ControlUnit", to: ["Decoder", "Pipeline", "InterruptController"], type: "control" },
+    { from: "Memory", to: ["Cache", "InstructionCache", "DataCache", "MMU"], type: "memory" },
+    { from: "Pipeline", to: ["ProgramCounter", "InstructionRegister", "BranchPredictor"], type: "pipeline" },
+    { from: "RegisterFile", to: ["Register", "ALU", "DataPath"], type: "data" },
+    { from: "ALU", to: ["FPU", "DataPath", "PerformanceCounter"], type: "computation" },
+    { from: "InterruptController", to: ["ExceptionHandler", "ControlUnit"], type: "system" }
+  ];
+
+  return (
+    <div className="bg-gray-50 p-6 rounded-lg">
+      <h3 className="text-lg font-semibold mb-4 text-gray-800">Diagram Interkoneksi Kelas</h3>
+      <div className="space-y-3">
+        {connections.map((conn, index) => (
+          <div key={index} className="flex items-center space-x-3">
+            <div className={`px-3 py-1 rounded text-sm font-medium ${
+              conn.type === 'primary' ? 'bg-blue-100 text-blue-800' :
+              conn.type === 'control' ? 'bg-green-100 text-green-800' :
+              conn.type === 'memory' ? 'bg-purple-100 text-purple-800' :
+              conn.type === 'pipeline' ? 'bg-orange-100 text-orange-800' :
+              conn.type === 'data' ? 'bg-red-100 text-red-800' :
+              conn.type === 'computation' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {conn.from}
+            </div>
+            <ArrowRight className="text-gray-400" size={16} />
+            <div className="flex flex-wrap gap-2">
+              {conn.to.map((target, idx) => (
+                <div key={idx} className="px-2 py-1 bg-white border rounded text-xs text-gray-600">
+                  {target}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Komponen utama untuk analisis arsitektur
+const CPUArchitectureAnalysis = () => {
+  const [expandedLayers, setExpandedLayers] = useState({});
+  const [selectedClass, setSelectedClass] = useState(null);
+
+  const toggleLayer = (layerKey) => {
+    setExpandedLayers(prev => ({
+      ...prev,
+      [layerKey]: !prev[layerKey]
+    }));
+  };
+
+  const selectClass = (className, classData) => {
+    setSelectedClass({ name: className, ...classData });
+  };
+
+  return (
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+                <Cpu className="text-blue-600" />
+                Analisis Arsitektur CPU: Interkoneksi 22 Kelas
+              </h1>
+              <p className="text-gray-600 mt-2">
+                Mahasiswa: Susanto | Binus University - S1 IT | Analisis Sistematis Komponen CPU
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Metodologi Penelitian */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Kerangka Metodologi Analisis</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-blue-800 mb-2">1. Identifikasi Komponen</h3>
+              <p className="text-sm text-blue-700">Katalogisasi 22 kelas berdasarkan fungsi dan hierarki sistem</p>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-green-800 mb-2">2. Analisis Dependensi</h3>
+              <p className="text-sm text-green-700">Pemetaan relasi dan ketergantungan antar komponen</p>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-purple-800 mb-2">3. Evaluasi Alur Data</h3>
+              <p className="text-sm text-purple-700">Tracing perpindahan data melalui sistem terintegrasi</p>
+            </div>
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-orange-800 mb-2">4. Optimasi Interaksi</h3>
+              <p className="text-sm text-orange-700">Identifikasi bottleneck dan peluang peningkatan performa</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Layer Analysis */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">Analisis Hierarkis 22 Kelas CPU</h2>
+              
+              {Object.entries(CPUArchitectureClasses).map(([layerKey, layer]) => (
+                <div key={layerKey} className="mb-4 border rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => toggleLayer(layerKey)}
+                    className="w-full p-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between text-left"
+                  >
+                    <div>
+                      <h3 className="font-semibold text-gray-800">{layer.title}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{layer.description}</p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        {Object.keys(layer.classes).length} kelas terintegrasi
+                      </p>
+                    </div>
+                    {expandedLayers[layerKey] ? 
+                      <ChevronDown className="text-gray-500" /> : 
+                      <ChevronRight className="text-gray-500" />
+                    }
+                  </button>
+                  
+                  {expandedLayers[layerKey] && (
+                    <div className="p-4 bg-white border-t">
+                      <div className="grid gap-3">
+                        {Object.entries(layer.classes).map(([className, classData]) => (
+                          <div 
+                            key={className}
+                            onClick={() => selectClass(className, classData)}
+                            className="p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition-colors"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-800 flex items-center gap-2">
+                                  <Circle className="w-3 h-3 text-blue-500" />
+                                  {classData.name}
+                                </h4>
+                                <p className="text-sm text-gray-600 mt-1">{classData.purpose}</p>
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {classData.dependencies.slice(0, 3).map((dep, idx) => (
+                                    <span key={idx} className="px-2 py-1 bg-gray-100 text-xs rounded">
+                                      {dep}
+                                    </span>
+                                  ))}
+                                  {classData.dependencies.length > 3 && (
+                                    <span className="px-2 py-1 bg-gray-100 text-xs rounded">
+                                      +{classData.dependencies.length - 3} lainnya
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Detail Panel */}
+          <div className="space-y-6">
+            {selectedClass ? (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <Database className="text-blue-600" />
+                  {selectedClass.name}
+                </h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Tujuan Utama:</h4>
+                    <p className="text-sm text-gray-600">{selectedClass.purpose}</p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Tanggung Jawab:</h4>
+                    <ul className="space-y-1">
+                      {selectedClass.responsibilities.map((resp, idx) => (
+                        <li key={idx} className="text-sm text-gray-600 flex items-start gap-2">
+                          <Square className="w-2 h-2 text-blue-500 mt-1.5 flex-shrink-0" />
+                          {resp}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Dependensi:</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedClass.dependencies.map((dep, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                          {dep}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Interface Kunci:</h4>
+                    <div className="space-y-1">
+                      {selectedClass.interfaces.map((iface, idx) => (
+                        <code key={idx} className="block text-xs bg-gray-100 p-2 rounded font-mono">
+                          {iface}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Alur Data:</h4>
+                    <p className="text-sm text-gray-600 bg-yellow-50 p-3 rounded">
+                      {selectedClass.dataFlow}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <div className="text-center text-gray-500">
+                  <Database className="mx-auto mb-3" size={48} />
+                  <p>Pilih kelas untuk melihat detail analisis</p>
+                </div>
+              </div>
+            )}
+
+            <ConnectionDiagram />
+          </div>
+        </div>
+
+        {/* Kesimpulan Analisis */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <Activity className="text-green-600" />
+            Kesimpulan Analisis Sistematis
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-3">Temuan Kunci:</h3>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-start gap-2">
+                  <Zap className="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                  <span><strong>Hierarki Terintegrasi:</strong> 22 kelas terbagi dalam 6 layer fungsional dengan interdependensi yang terstruktur</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Zap className="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                  <span><strong>Alur Data Optimal:</strong> Pipeline processing dengan cache hierarchy meminimalkan latency akses memori</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Zap className="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                  <span><strong>Modularitas Tinggi:</strong> Setiap kelas memiliki interface yang jelas dengan separation of concerns</span>
+                </li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-3">Implikasi Arsitektural:</h3>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-start gap-2">
+                  <Activity className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <span><strong>Skalabilitas:</strong> Arsitektur mendukung extensibility untuk fitur advanced seperti out-of-order execution</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Activity className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <span><strong>Maintainability:</strong> Clear separation memungkinkan modifikasi independen setiap subsistem</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Activity className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <span><strong>Performance:</strong> Multiple optimization layers (cache, prediction, pipeline) untuk efisiensi maksimal</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CPUArchitectureAnalysis;

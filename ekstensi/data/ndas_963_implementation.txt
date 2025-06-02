@@ -1,0 +1,460 @@
+// ====================================================================
+// NDAS_963 - Network-Driven Algorithmic Scope Implementation
+// Target: Arduino Mega/Due/ESP32/STM32 (Bare Metal)
+// Evaluasi: IBM & Kampus - No Simulation, Real Hardware Only
+// ====================================================================
+
+// config.h
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// Target hash untuk mining (difficulty adjustment)
+const uint8_t TARGET_HASH[32] = {
+  0x00, 0x00, 0x0F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+};
+
+// Simulasi 963 core melalui burst processing
+#define NDAS_CORE_COUNT 963
+#define NONCE_BATCH_SIZE 100
+#define BLOCK_HEADER_SIZE 80
+
+#endif
+
+// ====================================================================
+// sha256.h - Manual SHA-256 Implementation (No External Libraries)
+// ====================================================================
+
+#ifndef SHA256_H
+#define SHA256_H
+
+#include <stdint.h>
+#include <string.h>
+
+// SHA-256 Constants
+static const uint32_t K[64] = {
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+};
+
+// Bitwise operations - Manual implementation
+inline uint32_t ROTR32(uint32_t x, int n) {
+  return (x >> n) | (x << (32 - n));
+}
+
+inline uint32_t CH(uint32_t x, uint32_t y, uint32_t z) {
+  return (x & y) ^ (~x & z);
+}
+
+inline uint32_t MAJ(uint32_t x, uint32_t y, uint32_t z) {
+  return (x & y) ^ (x & z) ^ (y & z);
+}
+
+inline uint32_t SIGMA0(uint32_t x) {
+  return ROTR32(x, 2) ^ ROTR32(x, 13) ^ ROTR32(x, 22);
+}
+
+inline uint32_t SIGMA1(uint32_t x) {
+  return ROTR32(x, 6) ^ ROTR32(x, 11) ^ ROTR32(x, 25);
+}
+
+inline uint32_t GAMMA0(uint32_t x) {
+  return ROTR32(x, 7) ^ ROTR32(x, 18) ^ (x >> 3);
+}
+
+inline uint32_t GAMMA1(uint32_t x) {
+  return ROTR32(x, 17) ^ ROTR32(x, 19) ^ (x >> 10);
+}
+
+void sha256_transform(uint32_t state[8], const uint8_t block[64]);
+void sha256(const uint8_t* input, uint16_t len, uint8_t* output);
+
+#endif
+
+// ====================================================================
+// sha256.cpp - Core SHA-256 Implementation
+// ====================================================================
+
+void sha256_transform(uint32_t state[8], const uint8_t block[64]) {
+  uint32_t W[64];
+  uint32_t a, b, c, d, e, f, g, h;
+  uint32_t T1, T2;
+  
+  // Prepare message schedule
+  for (int i = 0; i < 16; i++) {
+    W[i] = (block[i*4] << 24) | (block[i*4+1] << 16) | (block[i*4+2] << 8) | block[i*4+3];
+  }
+  
+  for (int i = 16; i < 64; i++) {
+    W[i] = GAMMA1(W[i-2]) + W[i-7] + GAMMA0(W[i-15]) + W[i-16];
+  }
+  
+  // Initialize working variables
+  a = state[0]; b = state[1]; c = state[2]; d = state[3];
+  e = state[4]; f = state[5]; g = state[6]; h = state[7];
+  
+  // Main compression loop (64 rounds)
+  for (int i = 0; i < 64; i++) {
+    T1 = h + SIGMA1(e) + CH(e, f, g) + K[i] + W[i];
+    T2 = SIGMA0(a) + MAJ(a, b, c);
+    
+    h = g; g = f; f = e; e = d + T1;
+    d = c; c = b; b = a; a = T1 + T2;
+  }
+  
+  // Update state
+  state[0] += a; state[1] += b; state[2] += c; state[3] += d;
+  state[4] += e; state[5] += f; state[6] += g; state[7] += h;
+}
+
+void sha256(const uint8_t* input, uint16_t len, uint8_t* output) {
+  uint32_t state[8] = {
+    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+  };
+  
+  uint8_t block[64];
+  uint16_t i = 0;
+  
+  // Process full 64-byte blocks
+  while (i + 64 <= len) {
+    sha256_transform(state, input + i);
+    i += 64;
+  }
+  
+  // Handle padding for final block
+  memset(block, 0, 64);
+  memcpy(block, input + i, len - i);
+  block[len - i] = 0x80;
+  
+  if (len - i >= 56) {
+    sha256_transform(state, block);
+    memset(block, 0, 64);
+  }
+  
+  // Append length in bits
+  uint64_t bit_len = (uint64_t)len << 3;
+  for (int j = 0; j < 8; j++) {
+    block[64 - 1 - j] = (bit_len >> (j * 8)) & 0xFF;
+  }
+  
+  sha256_transform(state, block);
+  
+  // Output hash (big-endian)
+  for (int i = 0; i < 8; i++) {
+    output[i*4] = (state[i] >> 24) & 0xFF;
+    output[i*4+1] = (state[i] >> 16) & 0xFF;
+    output[i*4+2] = (state[i] >> 8) & 0xFF;
+    output[i*4+3] = state[i] & 0xFF;
+  }
+}
+
+// ====================================================================
+// core963.h - NDAS 963 Core Executor
+// ====================================================================
+
+#ifndef CORE963_H
+#define CORE963_H
+
+#include "config.h"
+#include "sha256.h"
+
+struct NDASCore {
+  uint8_t block_header[BLOCK_HEADER_SIZE];
+  uint32_t current_nonce;
+  uint32_t nonce_range;
+  bool active;
+};
+
+// Static allocation - No dynamic memory
+extern NDASCore cores[NDAS_CORE_COUNT];
+extern uint8_t temp_hash[32];
+extern uint8_t working_block[BLOCK_HEADER_SIZE];
+
+bool execute_nonce_burst(uint32_t start_nonce, uint32_t range, uint32_t* valid_nonce);
+void init_cores();
+void set_block_header(const uint8_t* header);
+
+#endif
+
+// ====================================================================
+// core963.cpp - Core Execution Logic
+// ====================================================================
+
+// Static memory allocation (No malloc/new allowed)
+NDASCore cores[NDAS_CORE_COUNT];
+uint8_t temp_hash[32];
+uint8_t working_block[BLOCK_HEADER_SIZE];
+
+void init_cores() {
+  for (int i = 0; i < NDAS_CORE_COUNT; i++) {
+    cores[i].current_nonce = 0;
+    cores[i].nonce_range = 0;
+    cores[i].active = false;
+    memset(cores[i].block_header, 0, BLOCK_HEADER_SIZE);
+  }
+}
+
+void set_block_header(const uint8_t* header) {
+  for (int i = 0; i < NDAS_CORE_COUNT; i++) {
+    memcpy(cores[i].block_header, header, BLOCK_HEADER_SIZE);
+  }
+}
+
+bool execute_nonce_burst(uint32_t start_nonce, uint32_t range, uint32_t* valid_nonce) {
+  // Burst processing: simulate 963 cores through sequential execution
+  // Real hardware would execute this in parallel lanes
+  
+  for (uint16_t core_id = 0; core_id < NDAS_CORE_COUNT; core_id++) {
+    uint32_t nonce_per_core = range / NDAS_CORE_COUNT;
+    uint32_t core_start = start_nonce + (core_id * nonce_per_core);
+    
+    for (uint32_t nonce = core_start; nonce < core_start + nonce_per_core; nonce++) {
+      // Prepare block with nonce (Bitcoin-style: nonce at bytes 76-79)
+      memcpy(working_block, cores[core_id].block_header, BLOCK_HEADER_SIZE);
+      working_block[76] = (nonce >> 0) & 0xFF;
+      working_block[77] = (nonce >> 8) & 0xFF;
+      working_block[78] = (nonce >> 16) & 0xFF;
+      working_block[79] = (nonce >> 24) & 0xFF;
+      
+      // Double SHA-256 (Bitcoin mining standard)
+      sha256(working_block, BLOCK_HEADER_SIZE, temp_hash);
+      sha256(temp_hash, 32, temp_hash);
+      
+      // Check if hash meets target (difficulty)
+      bool valid = true;
+      for (int i = 0; i < 32; i++) {
+        if (temp_hash[i] > TARGET_HASH[i]) {
+          valid = false;
+          break;
+        } else if (temp_hash[i] < TARGET_HASH[i]) {
+          break;
+        }
+      }
+      
+      if (valid) {
+        *valid_nonce = nonce;
+        return true;
+      }
+    }
+  }
+  
+  return false; // No valid nonce found in this batch
+}
+
+// ====================================================================
+// scheduler.h - Nonce Distribution & Feedback Loop
+// ====================================================================
+
+#ifndef SCHEDULER_H
+#define SCHEDULER_H
+
+#include "config.h"
+
+struct NDASScheduler {
+  uint32_t current_base_nonce;
+  uint32_t total_attempts;
+  uint16_t retry_count;
+  bool reset_required;
+};
+
+extern NDASScheduler scheduler;
+
+void init_scheduler();
+void get_next_nonce_batch(uint32_t* start_nonce, uint32_t* range);
+void feedback_failed_batch(uint32_t failed_start, uint32_t failed_range);
+void reset_scheduler();
+
+#endif
+
+// ====================================================================
+// scheduler.cpp - Scheduler Implementation
+// ====================================================================
+
+NDASScheduler scheduler;
+
+void init_scheduler() {
+  scheduler.current_base_nonce = 0;
+  scheduler.total_attempts = 0;
+  scheduler.retry_count = 0;
+  scheduler.reset_required = false;
+}
+
+void get_next_nonce_batch(uint32_t* start_nonce, uint32_t* range) {
+  *start_nonce = scheduler.current_base_nonce;
+  *range = NONCE_BATCH_SIZE * NDAS_CORE_COUNT;
+  
+  scheduler.current_base_nonce += *range;
+  scheduler.total_attempts += *range;
+  
+  // Prevent overflow
+  if (scheduler.current_base_nonce > 0xFFFF0000) {
+    scheduler.reset_required = true;
+  }
+}
+
+void feedback_failed_batch(uint32_t failed_start, uint32_t failed_range) {
+  // Feedback loop: retry with different approach or continue
+  scheduler.retry_count++;
+  
+  // Optional: implement retry logic here
+  // For now, just continue to next batch
+}
+
+void reset_scheduler() {
+  scheduler.current_base_nonce = 0;
+  scheduler.retry_count = 0;
+  scheduler.reset_required = false;
+}
+
+// ====================================================================
+// verifier.h - Nonce Verification
+// ====================================================================
+
+#ifndef VERIFIER_H
+#define VERIFIER_H
+
+#include "config.h"
+
+bool is_nonce_valid(const uint8_t* hash);
+void log_valid_nonce(uint32_t nonce, const uint8_t* hash);
+
+#endif
+
+// ====================================================================
+// verifier.cpp - Verification Logic
+// ====================================================================
+
+bool is_nonce_valid(const uint8_t* hash) {
+  // Compare hash with target using memcmp equivalent
+  for (int i = 0; i < 32; i++) {
+    if (hash[i] > TARGET_HASH[i]) return false;
+    if (hash[i] < TARGET_HASH[i]) return true;
+  }
+  return true; // Exact match
+}
+
+void log_valid_nonce(uint32_t nonce, const uint8_t* hash) {
+  Serial.println("[NDAS_963] Valid nonce found!");
+  Serial.print("Nonce: ");
+  Serial.println(nonce);
+  Serial.print("Hash: ");
+  
+  for (int i = 0; i < 32; i++) {
+    if (hash[i] < 16) Serial.print("0");
+    Serial.print(hash[i], HEX);
+  }
+  Serial.println();
+}
+
+// ====================================================================
+// main.ino - Arduino Entry Point
+// ====================================================================
+
+#include "config.h"
+#include "core963.h"
+#include "scheduler.h"
+#include "verifier.h"
+
+// Sample block header (Bitcoin-like structure)
+const uint8_t SAMPLE_BLOCK_HEADER[BLOCK_HEADER_SIZE] = {
+  // Version (4 bytes)
+  0x01, 0x00, 0x00, 0x00,
+  // Previous block hash (32 bytes)
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  // Merkle root (32 bytes)
+  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+  // Timestamp (4 bytes)
+  0x29, 0xAB, 0x5F, 0x49,
+  // Bits/Target (4 bytes)
+  0xFF, 0xFF, 0x00, 0x1D,
+  // Nonce (4 bytes) - Will be overwritten during mining
+  0x00, 0x00, 0x00, 0x00
+};
+
+unsigned long start_time;
+uint32_t total_hashes = 0;
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("=== NDAS_963 Mining System ===");
+  Serial.println("Target: Arduino/ESP32 Hardware");
+  Serial.println("Evaluation: IBM & Campus");
+  Serial.println("==============================");
+  
+  // Initialize all components
+  init_cores();
+  init_scheduler();
+  set_block_header(SAMPLE_BLOCK_HEADER);
+  
+  start_time = millis();
+  Serial.println("Mining started...");
+}
+
+void loop() {
+  uint32_t nonce_start, nonce_range;
+  uint32_t valid_nonce;
+  
+  // Get next batch from scheduler
+  get_next_nonce_batch(&nonce_start, &nonce_range);
+  
+  // Execute burst mining across 963 simulated cores
+  bool found = execute_nonce_burst(nonce_start, nonce_range, &valid_nonce);
+  
+  total_hashes += nonce_range;
+  
+  if (found) {
+    // Valid nonce found!
+    unsigned long elapsed = millis() - start_time;
+    
+    Serial.println("\n*** SUCCESS ***");
+    Serial.print("Valid nonce: ");
+    Serial.println(valid_nonce);
+    Serial.print("Time elapsed: ");
+    Serial.print(elapsed / 1000.0);
+    Serial.println(" seconds");
+    Serial.print("Total hashes: ");
+    Serial.println(total_hashes);
+    Serial.print("Hash rate: ");
+    Serial.print(total_hashes / (elapsed / 1000.0));
+    Serial.println(" H/s");
+    
+    // Stop mining after success
+    while (1) {
+      delay(1000);
+    }
+  }
+  
+  // Feedback loop for failed attempts
+  feedback_failed_batch(nonce_start, nonce_range);
+  
+  // Reset scheduler if needed
+  if (scheduler.reset_required) {
+    Serial.println("Resetting nonce space...");
+    reset_scheduler();
+  }
+  
+  // Progress report every 10 batches
+  if ((total_hashes / nonce_range) % 10 == 0) {
+    unsigned long elapsed = millis() - start_time;
+    Serial.print("Progress: ");
+    Serial.print(total_hashes);
+    Serial.print(" hashes, ");
+    Serial.print(total_hashes / (elapsed / 1000.0));
+    Serial.println(" H/s");
+  }
+}

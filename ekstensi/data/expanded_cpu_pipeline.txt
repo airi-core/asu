@@ -1,0 +1,837 @@
+// CPU Pipeline End-to-End Architecture - 22 Integrated Classes
+// Mahasiswa: Susanto, Binus University, Information Systems
+// Kerangka Metodologi: Comprehensive Pipeline Analysis
+
+// ====== KELAS DASAR (12 KELAS FUNDAMENTAL) ======
+
+// KELAS 1: Register - Unit penyimpanan data fundamental
+class Register {
+    private value: number = 0;
+    private name: string;
+    private dirty: boolean = false;
+    private lastAccess: number = 0;
+
+    constructor(name: string) {
+        this.name = name;
+    }
+
+    setValue(val: number): void {
+        this.value = val;
+        this.dirty = true;
+        this.lastAccess = Date.now();
+    }
+
+    getValue(): number {
+        this.lastAccess = Date.now();
+        return this.value;
+    }
+
+    getName(): string { return this.name; }
+    isDirty(): boolean { return this.dirty; }
+    clearDirty(): void { this.dirty = false; }
+    getLastAccess(): number { return this.lastAccess; }
+    reset(): void { this.value = 0; this.dirty = false; }
+}
+
+// KELAS 2: Memory - Hierarki memori sistematis
+class Memory {
+    private storage: Map<number, number> = new Map();
+    private accessLatency: number = 100; // cycles
+    private accessCount: number = 0;
+    private readonly MAX_ADDRESS = 0xFFFFFFFF;
+
+    write(address: number, data: number): Promise<boolean> {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                if (address > this.MAX_ADDRESS || address < 0) {
+                    throw new Error(`Invalid memory address: 0x${address.toString(16)}`);
+                }
+                this.storage.set(address, data);
+                this.accessCount++;
+                resolve(true);
+            }, this.accessLatency);
+        });
+    }
+
+    read(address: number): Promise<number> {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                if (address > this.MAX_ADDRESS || address < 0) {
+                    throw new Error(`Invalid memory address: 0x${address.toString(16)}`);
+                }
+                this.accessCount++;
+                resolve(this.storage.get(address) || 0);
+            }, this.accessLatency);
+        });
+    }
+
+    getAccessCount(): number { return this.accessCount; }
+    getLatency(): number { return this.accessLatency; }
+    clear(): void { this.storage.clear(); this.accessCount = 0; }
+}
+
+// KELAS 3: Instruction - Representasi instruksi komprehensif
+class Instruction {
+    public opcode: string;
+    public operands: number[];
+    public destination?: string;
+    public immediate?: number;
+    public memoryAddress?: number;
+    public instructionType: 'R' | 'I' | 'J'; // Register, Immediate, Jump
+    public cycleRequirement: number;
+    public dependencies: string[] = [];
+
+    constructor(
+        opcode: string, 
+        instructionType: 'R' | 'I' | 'J' = 'R',
+        cycleRequirement: number = 1
+    ) {
+        this.opcode = opcode;
+        this.instructionType = instructionType;
+        this.cycleRequirement = cycleRequirement;
+        this.operands = [];
+    }
+
+    addOperand(operand: number): void { this.operands.push(operand); }
+    setDestination(dest: string): void { this.destination = dest; }
+    setImmediate(imm: number): void { this.immediate = imm; }
+    setMemoryAddress(addr: number): void { this.memoryAddress = addr; }
+    addDependency(dep: string): void { this.dependencies.push(dep); }
+    
+    toString(): string {
+        return `${this.opcode} ${this.operands.join(', ')} -> ${this.destination || 'void'}`;
+    }
+}
+
+// KELAS 4: ALU - Advanced Arithmetic Logic Unit
+class ALU {
+    private flags: {
+        zero: boolean; carry: boolean; overflow: boolean; 
+        negative: boolean; parity: boolean;
+    } = { zero: false, carry: false, overflow: false, negative: false, parity: false };
+    
+    private operationCount: number = 0;
+    private lastResult: number = 0;
+
+    // Operasi aritmatika fundamental
+    add(a: number, b: number): number {
+        const result = a + b;
+        this.updateFlags(result);
+        this.operationCount++;
+        this.lastResult = result;
+        return result;
+    }
+
+    subtract(a: number, b: number): number {
+        const result = a - b;
+        this.updateFlags(result);
+        this.operationCount++;
+        this.lastResult = result;
+        return result;
+    }
+
+    multiply(a: number, b: number): number {
+        const result = a * b;
+        this.updateFlags(result);
+        this.operationCount++;
+        this.lastResult = result;
+        return result;
+    }
+
+    // Operasi logika bitwise
+    bitwiseAnd(a: number, b: number): number {
+        const result = a & b;
+        this.updateFlags(result);
+        this.operationCount++;
+        return result;
+    }
+
+    bitwiseOr(a: number, b: number): number {
+        const result = a | b;
+        this.updateFlags(result);
+        this.operationCount++;
+        return result;
+    }
+
+    // Operasi shift
+    leftShift(value: number, positions: number): number {
+        const result = value << positions;
+        this.updateFlags(result);
+        this.operationCount++;
+        return result;
+    }
+
+    rightShift(value: number, positions: number): number {
+        const result = value >> positions;
+        this.updateFlags(result);
+        this.operationCount++;
+        return result;
+    }
+
+    private updateFlags(result: number): void {
+        this.flags.zero = result === 0;
+        this.flags.negative = result < 0;
+        this.flags.carry = result > 0xFFFFFFFF;
+        this.flags.overflow = result > 2147483647 || result < -2147483648;
+        this.flags.parity = (result & 1) === 0;
+    }
+
+    getFlags() { return { ...this.flags }; }
+    getOperationCount(): number { return this.operationCount; }
+    getLastResult(): number { return this.lastResult; }
+}
+
+// KELAS 5: ControlUnit - Advanced Control Logic
+class ControlUnit {
+    private currentState: 'FETCH' | 'DECODE' | 'EXECUTE' | 'WRITEBACK' | 'STALL' = 'FETCH';
+    private interruptEnabled: boolean = true;
+    private microcode: Map<string, Array<string>> = new Map();
+    private controlSignals: Set<string> = new Set();
+
+    constructor() {
+        this.initializeMicrocode();
+    }
+
+    private initializeMicrocode(): void {
+        this.microcode.set('ADD', ['ALU_ADD', 'REG_WRITE', 'PC_INCREMENT']);
+        this.microcode.set('LOAD', ['MEM_READ', 'REG_WRITE', 'PC_INCREMENT']);
+        this.microcode.set('STORE', ['REG_READ', 'MEM_WRITE', 'PC_INCREMENT']);
+        this.microcode.set('BRANCH', ['ALU_COMPARE', 'PC_BRANCH']);
+    }
+
+    setState(state: 'FETCH' | 'DECODE' | 'EXECUTE' | 'WRITEBACK' | 'STALL'): void {
+        this.currentState = state;
+    }
+
+    getState(): string { return this.currentState; }
+    
+    generateControlSignals(instruction: Instruction): string[] {
+        return this.microcode.get(instruction.opcode) || ['NOP'];
+    }
+
+    setControlSignal(signal: string): void { this.controlSignals.add(signal); }
+    clearControlSignals(): void { this.controlSignals.clear(); }
+    getActiveSignals(): string[] { return Array.from(this.controlSignals); }
+}
+
+// KELAS 6-12: Implementasi komponen dasar lainnya
+class ProgramCounter {
+    private address: number = 0;
+    private jumpHistory: number[] = [];
+
+    increment(): void { this.address++; }
+    jump(address: number): void { 
+        this.jumpHistory.push(this.address);
+        this.address = address; 
+    }
+    getValue(): number { return this.address; }
+    getJumpHistory(): number[] { return [...this.jumpHistory]; }
+    reset(): void { this.address = 0; this.jumpHistory = []; }
+}
+
+class InstructionCache {
+    private cache: Map<number, Instruction> = new Map();
+    private hitCount: number = 0;
+    private missCount: number = 0;
+    private readonly CACHE_SIZE = 128;
+
+    get(address: number): Instruction | null {
+        const instruction = this.cache.get(address);
+        if (instruction) { this.hitCount++; return instruction; }
+        else { this.missCount++; return null; }
+    }
+
+    put(address: number, instruction: Instruction): void {
+        if (this.cache.size >= this.CACHE_SIZE) {
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
+        }
+        this.cache.set(address, instruction);
+    }
+
+    getHitRate(): number {
+        const total = this.hitCount + this.missCount;
+        return total > 0 ? this.hitCount / total : 0;
+    }
+}
+
+class RegisterFile {
+    private registers: Map<string, Register> = new Map();
+    private renameTable: Map<string, string> = new Map();
+
+    constructor() {
+        const registerNames = ['R0', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 
+                              'R8', 'R9', 'R10', 'R11', 'R12', 'R13', 'R14', 'R15'];
+        registerNames.forEach(name => {
+            this.registers.set(name, new Register(name));
+        });
+    }
+
+    getRegister(name: string): Register {
+        const physicalName = this.renameTable.get(name) || name;
+        const register = this.registers.get(physicalName.toUpperCase());
+        if (!register) throw new Error(`Register ${name} not found`);
+        return register;
+    }
+
+    renameRegister(logical: string, physical: string): void {
+        this.renameTable.set(logical, physical);
+    }
+}
+
+class Bus {
+    private addressBus: number = 0;
+    private dataBus: number = 0;
+    private controlBus: Set<string> = new Set();
+    private busWidth: number = 64; // bits
+    private transferCount: number = 0;
+
+    setAddress(address: number): void { this.addressBus = address; }
+    setData(data: number): void { this.dataBus = data; this.transferCount++; }
+    getAddress(): number { return this.addressBus; }
+    getData(): number { return this.dataBus; }
+    getTransferCount(): number { return this.transferCount; }
+}
+
+class InterruptController {
+    private interruptQueue: Array<{id: number, priority: number, handler: string}> = [];
+    private maskedInterrupts: Set<number> = new Set();
+
+    requestInterrupt(id: number, priority: number, handler: string): boolean {
+        if (this.maskedInterrupts.has(id)) return false;
+        this.interruptQueue.push({id, priority, handler});
+        this.interruptQueue.sort((a, b) => b.priority - a.priority);
+        return true;
+    }
+
+    maskInterrupt(id: number): void { this.maskedInterrupts.add(id); }
+    unmaskInterrupt(id: number): void { this.maskedInterrupts.delete(id); }
+}
+
+class Pipeline {
+    private stages: Map<string, Instruction | null> = new Map();
+    private stallCount: number = 0;
+    private flushCount: number = 0;
+
+    constructor() {
+        ['fetch', 'decode', 'execute', 'memory', 'writeback'].forEach(stage => {
+            this.stages.set(stage, null);
+        });
+    }
+
+    advance(): void {
+        const stages = Array.from(this.stages.keys()).reverse();
+        for (let i = 0; i < stages.length - 1; i++) {
+            this.stages.set(stages[i], this.stages.get(stages[i + 1]) || null);
+        }
+        this.stages.set('fetch', null);
+    }
+
+    stall(): void { this.stallCount++; }
+    flush(): void { 
+        this.stages.forEach((_, key) => this.stages.set(key, null));
+        this.flushCount++;
+    }
+}
+
+// ====== KELAS EKSPANSI END-TO-END (10 KELAS TAMBAHAN) ======
+
+// KELAS 13: BranchPredictor - Advanced Branch Prediction
+class BranchPredictor {
+    private branchHistory: Map<number, number> = new Map(); // 2-bit saturating counter
+    private globalHistory: number = 0;
+    private predictionAccuracy: { correct: number, total: number } = { correct: 0, total: 0 };
+
+    predict(pc: number): boolean {
+        const history = this.branchHistory.get(pc) || 1; // Default: weakly not taken
+        return history >= 2; // Taken if >= 2
+    }
+
+    update(pc: number, taken: boolean): void {
+        let history = this.branchHistory.get(pc) || 1;
+        
+        if (taken) {
+            history = Math.min(3, history + 1);
+        } else {
+            history = Math.max(0, history - 1);
+        }
+        
+        this.branchHistory.set(pc, history);
+        this.updateGlobalHistory(taken);
+        
+        // Update accuracy statistics
+        const predicted = this.predict(pc);
+        this.predictionAccuracy.total++;
+        if (predicted === taken) {
+            this.predictionAccuracy.correct++;
+        }
+    }
+
+    private updateGlobalHistory(taken: boolean): void {
+        this.globalHistory = ((this.globalHistory << 1) | (taken ? 1 : 0)) & 0xFFFF;
+    }
+
+    getAccuracy(): number {
+        return this.predictionAccuracy.total > 0 
+            ? this.predictionAccuracy.correct / this.predictionAccuracy.total 
+            : 0;
+    }
+}
+
+// KELAS 14: OutOfOrderEngine - Out-of-Order Execution Management
+class OutOfOrderEngine {
+    private reservationStations: Map<string, Array<{
+        instruction: Instruction;
+        operand1Ready: boolean;
+        operand2Ready: boolean;
+        issued: boolean;
+    }>> = new Map();
+    private reorderBuffer: Array<{
+        instruction: Instruction;
+        completed: boolean;
+        result?: number;
+        pc: number;
+    }> = [];
+    private readonly ROB_SIZE = 64;
+
+    constructor() {
+        ['ALU', 'MEMORY', 'BRANCH'].forEach(unit => {
+            this.reservationStations.set(unit, []);
+        });
+    }
+
+    dispatch(instruction: Instruction, pc: number): boolean {
+        if (this.reorderBuffer.length >= this.ROB_SIZE) {
+            return false; // ROB full
+        }
+
+        // Add to reorder buffer
+        this.reorderBuffer.push({
+            instruction,
+            completed: false,
+            pc
+        });
+
+        // Determine functional unit and add to reservation station
+        const unit = this.getFunctionalUnit(instruction);
+        const stations = this.reservationStations.get(unit);
+        if (stations) {
+            stations.push({
+                instruction,
+                operand1Ready: true, // Simplified - assume operands ready
+                operand2Ready: true,
+                issued: false
+            });
+        }
+
+        return true;
+    }
+
+    private getFunctionalUnit(instruction: Instruction): string {
+        const opcode = instruction.opcode.toLowerCase();
+        if (['add', 'sub', 'mul', 'div'].includes(opcode)) return 'ALU';
+        if (['load', 'store'].includes(opcode)) return 'MEMORY';
+        if (['branch', 'jump'].includes(opcode)) return 'BRANCH';
+        return 'ALU';
+    }
+
+    issue(): Instruction[] {
+        const issued: Instruction[] = [];
+        
+        this.reservationStations.forEach((stations, unit) => {
+            const readyStation = stations.find(s => 
+                !s.issued && s.operand1Ready && s.operand2Ready
+            );
+            
+            if (readyStation) {
+                readyStation.issued = true;
+                issued.push(readyStation.instruction);
+            }
+        });
+
+        return issued;
+    }
+
+    complete(instruction: Instruction, result: number): void {
+        const robEntry = this.reorderBuffer.find(entry => 
+            entry.instruction === instruction && !entry.completed
+        );
+        
+        if (robEntry) {
+            robEntry.completed = true;
+            robEntry.result = result;
+        }
+    }
+
+    commit(): Instruction[] {
+        const committed: Instruction[] = [];
+        
+        while (this.reorderBuffer.length > 0 && this.reorderBuffer[0].completed) {
+            const entry = this.reorderBuffer.shift()!;
+            committed.push(entry.instruction);
+        }
+
+        return committed;
+    }
+}
+
+// KELAS 15: DataCache - L1 Data Cache Implementation
+class DataCache {
+    private cache: Map<number, { data: number, valid: boolean, dirty: boolean, tag: number }> = new Map();
+    private readonly CACHE_SIZE = 256;
+    private readonly BLOCK_SIZE = 64;
+    private hitCount: number = 0;
+    private missCount: number = 0;
+    private writebackCount: number = 0;
+
+    read(address: number): { hit: boolean, data: number } {
+        const blockAddress = Math.floor(address / this.BLOCK_SIZE);
+        const cacheEntry = this.cache.get(blockAddress);
+
+        if (cacheEntry && cacheEntry.valid) {
+            this.hitCount++;
+            return { hit: true, data: cacheEntry.data };
+        } else {
+            this.missCount++;
+            return { hit: false, data: 0 };
+        }
+    }
+
+    write(address: number, data: number): { hit: boolean, writeback: boolean } {
+        const blockAddress = Math.floor(address / this.BLOCK_SIZE);
+        const cacheEntry = this.cache.get(blockAddress);
+
+        if (cacheEntry && cacheEntry.valid) {
+            // Write hit
+            cacheEntry.data = data;
+            cacheEntry.dirty = true;
+            this.hitCount++;
+            return { hit: true, writeback: false };
+        } else {
+            // Write miss - allocate new block
+            let writeback = false;
+            
+            if (this.cache.size >= this.CACHE_SIZE) {
+                // Evict a block (simplified LRU)
+                const evictKey = this.cache.keys().next().value;
+                const evictEntry = this.cache.get(evictKey);
+                
+                if (evictEntry && evictEntry.dirty) {
+                    writeback = true;
+                    this.writebackCount++;
+                }
+                
+                this.cache.delete(evictKey);
+            }
+
+            this.cache.set(blockAddress, {
+                data,
+                valid: true,
+                dirty: true,
+                tag: blockAddress
+            });
+
+            this.missCount++;
+            return { hit: false, writeback };
+        }
+    }
+
+    getHitRate(): number {
+        const total = this.hitCount + this.missCount;
+        return total > 0 ? this.hitCount / total : 0;
+    }
+
+    getMissRate(): number { return 1 - this.getHitRate(); }
+    getWritebackCount(): number { return this.writebackCount; }
+}
+
+// KELAS 16: LoadStoreUnit - Memory Operation Management
+class LoadStoreUnit {
+    private loadQueue: Array<{
+        address: number;
+        destination: string;
+        issued: boolean;
+        completed: boolean;
+    }> = [];
+    private storeQueue: Array<{
+        address: number;
+        data: number;
+        issued: boolean;
+        completed: boolean;
+    }> = [];
+    private readonly MAX_LOADS = 16;
+    private readonly MAX_STORES = 16;
+
+    addLoad(address: number, destination: string): boolean {
+        if (this.loadQueue.length >= this.MAX_LOADS) return false;
+        
+        this.loadQueue.push({
+            address,
+            destination,
+            issued: false,
+            completed: false
+        });
+        return true;
+    }
+
+    addStore(address: number, data: number): boolean {
+        if (this.storeQueue.length >= this.MAX_STORES) return false;
+        
+        this.storeQueue.push({
+            address,
+            data,
+            issued: false,
+            completed: false
+        });
+        return true;
+    }
+
+    issueLoads(): Array<{ address: number, destination: string }> {
+        const issued: Array<{ address: number, destination: string }> = [];
+        
+        this.loadQueue.forEach(load => {
+            if (!load.issued && !this.hasAddressConflict(load.address)) {
+                load.issued = true;
+                issued.push({ address: load.address, destination: load.destination });
+            }
+        });
+
+        return issued;
+    }
+
+    issueStores(): Array<{ address: number, data: number }> {
+        const issued: Array<{ address: number, data: number }> = [];
+        
+        this.storeQueue.forEach(store => {
+            if (!store.issued) {
+                store.issued = true;
+                issued.push({ address: store.address, data: store.data });
+            }
+        });
+
+        return issued;
+    }
+
+    private hasAddressConflict(loadAddress: number): boolean {
+        return this.storeQueue.some(store => 
+            !store.completed && store.address === loadAddress
+        );
+    }
+
+    completeLoad(address: number): void {
+        const load = this.loadQueue.find(l => l.address === address && l.issued);
+        if (load) {
+            load.completed = true;
+        }
+    }
+
+    completeStore(address: number): void {
+        const store = this.storeQueue.find(s => s.address === address && s.issued);
+        if (store) {
+            store.completed = true;
+        }
+    }
+
+    retire(): void {
+        this.loadQueue = this.loadQueue.filter(load => !load.completed);
+        this.storeQueue = this.storeQueue.filter(store => !store.completed);
+    }
+}
+
+// KELAS 17: CacheCoherency - Multi-core Cache Coherence Protocol
+class CacheCoherency {
+    private cacheStates: Map<number, Map<number, 'M' | 'E' | 'S' | 'I'>> = new Map(); // MESI Protocol
+    private busTransactions: Array<{
+        type: 'READ' | 'WRITE' | 'INVALIDATE';
+        address: number;
+        core: number;
+        timestamp: number;
+    }> = [];
+
+    constructor(private numCores: number) {
+        for (let i = 0; i < numCores; i++) {
+            this.cacheStates.set(i, new Map());
+        }
+    }
+
+    readRequest(core: number, address: number): 'HIT' | 'MISS' | 'SHARED' {
+        const coreCache = this.cacheStates.get(core)!;
+        const state = coreCache.get(address);
+
+        switch (state) {
+            case 'M':
+            case 'E':
+            case 'S':
+                return 'HIT';
+            case 'I':
+            case undefined:
+                // Check if other cores have the data
+                const otherCoresHaveData = this.checkOtherCores(core, address);
+                if (otherCoresHaveData) {
+                    coreCache.set(address, 'S');
+                    this.invalidateOthersToShared(core, address);
+                    return 'SHARED';
+                } else {
+                    coreCache.set(address, 'E');
+                    return 'MISS';
+                }
+            default:
+                return 'MISS';
+        }
+    }
+
+    writeRequest(core: number, address: number): 'HIT' | 'MISS' {
+        const coreCache = this.cacheStates.get(core)!;
+        const state = coreCache.get(address);
+
+        // Invalidate other cores
+        this.invalidateOthers(core, address);
+        coreCache.set(address, 'M');
+
+        this.busTransactions.push({
+            type: 'WRITE',
+            address,
+            core,
+            timestamp: Date.now()
+        });
+
+        return state === 'I' || state === undefined ? 'MISS' : 'HIT';
+    }
+
+    private checkOtherCores(excludeCore: number, address: number): boolean {
+        for (let core = 0; core < this.numCores; core++) {
+            if (core === excludeCore) continue;
+            
+            const coreCache = this.cacheStates.get(core)!;
+            const state = coreCache.get(address);
+            
+            if (state && state !== 'I') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private invalidateOthers(excludeCore: number, address: number): void {
+        for (let core = 0; core < this.numCores; core++) {
+            if (core === excludeCore) continue;
+            
+            const coreCache = this.cacheStates.get(core)!;
+            coreCache.set(address, 'I');
+        }
+
+        this.busTransactions.push({
+            type: 'INVALIDATE',
+            address,
+            core: excludeCore,
+            timestamp: Date.now()
+        });
+    }
+
+    private invalidateOthersToShared(excludeCore: number, address: number): void {
+        for (let core = 0; core < this.numCores; core++) {
+            if (core === excludeCore) continue;
+            
+            const coreCache = this.cacheStates.get(core)!;
+            const state = coreCache.get(address);
+            
+            if (state === 'M' || state === 'E') {
+                coreCache.set(address, 'S');
+            }
+        }
+    }
+
+    getCoherencyStats(): {
+        totalTransactions: number;
+        invalidations: number;
+        coherencyOverhead: number;
+    } {
+        const invalidations = this.busTransactions.filter(t => t.type === 'INVALIDATE').length;
+        
+        return {
+            totalTransactions: this.busTransactions.length,
+            invalidations,
+            coherencyOverhead: this.busTransactions.length > 0 ? invalidations / this.busTransactions.length : 0
+        };
+    }
+}
+
+// KELAS 18: PerformanceCounters - Comprehensive Performance Monitoring
+class PerformanceCounters {
+    private counters: Map<string, number> = new Map();
+    private startTime: number = Date.now();
+    private cycleCount: number = 0;
+
+    constructor() {
+        this.initializeCounters();
+    }
+
+    private initializeCounters(): void {
+        const counterNames = [
+            'instructions_executed', 'cache_hits', 'cache_misses', 'branch_mispredictions',
+            'pipeline_stalls', 'memory_accesses', 'floating_point_ops', 'integer_ops',
+            'load_instructions', 'store_instructions', 'branch_instructions',
+            'pipeline_flushes', 'tlb_misses', 'context_switches'
+        ];
+
+        counterNames.forEach(name => {
+            this.counters.set(name, 0);
+        });
+    }
+
+    increment(counterName: string, value: number = 1): void {
+        const current = this.counters.get(counterName) || 0;
+        this.counters.set(counterName, current + value);
+    }
+
+    get(counterName: string): number {
+        return this.counters.get(counterName) || 0;
+    }
+
+    incrementCycle(): void {
+        this.cycleCount++;
+    }
+
+    getIPC(): number {
+        const instructions = this.get('instructions_executed');
+        return this.cycleCount > 0 ? instructions / this.cycleCount : 0;
+    }
+
+    getCPI(): number {
+        const ipc = this.getIPC();
+        return ipc > 0 ? 1 / ipc : 0;
+    }
+
+    getCacheHitRate(): number {
+        const hits = this.get('cache_hits');
+        const misses = this.get('cache_misses');
+        const total = hits + misses;
+        return total > 0 ? hits / total : 0;
+    }
+
+    getBranchPredictionAccuracy(): number {
+        const branches = this.get('branch_instructions');
+        const mispredictions = this.get('branch_mispredictions');
+        return branches > 0 ? 1 - (mispredictions / branches) : 0;
+    }
+
+    getExecutionTime(): number {
+        return Date.now() - this.startTime;
+    }
+
+    getAllCounters(): Map<string, number> {
+        return new Map(this.counters);
+    }
+
+    reset(): void {
+        this.counters.forEach((_, key) => {
+            this.counters.set(key, 0);
+        });
+        this.startTime = Date.now();
+        this.cycleCount = 0;
+    }
+}
+
+// KELAS 19: TLB (Translation Lookaside Buffer) - Virtual Memory Management
+class TLB {
+    private entries: Map
