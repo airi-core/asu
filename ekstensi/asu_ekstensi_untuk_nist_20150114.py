@@ -51,6 +51,7 @@ asu_file_extension_architecture = {
         ],
         "dependencies": ["liboqs-python>=0.8.0", "intel-ipp-crypto>=2021.10.0", "numpy<2.0"],
         "implementation": {
+            "pure_software": "SHA-256 tanpa SHA-NI",
             "key_exchange": "Kyber-1024 + ECDH secp384r1",
             "signature": "Dilithium5 + ECDSA secp384r1",
             "thread_pool": "Dynamic thread pool (min=1024, max=9216)",
