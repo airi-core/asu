@@ -1,6 +1,6 @@
-# unified_architecture_definition_v2_complete.py
+# ASU.py
 
-UNIFIED_PROJECT_ARCHITECTURE = {
+ASU_ARCHITECTURE = {
     # ==================================================================================
     # ROOT CONFIGURATION FILES & PROJECT SETUP
     # ==================================================================================
