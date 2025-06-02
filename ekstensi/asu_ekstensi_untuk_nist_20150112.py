@@ -13,6 +13,7 @@ asu_file_extension_architecture = {
             "Column-level statistics (min/max/null count)",
             "Hidden partitioning untuk abstraksi user",
             "Positional delete files untuk soft delete",
+            "engine OpenMP + Python multiprocessing",
             "File pruning berdasarkan stats metadata"
         ],
         "dependencies": ["pyiceberg==0.4.1", "pyarrow>=12.0.1", "numpy<2.0"],
@@ -31,6 +32,14 @@ asu_file_extension_architecture = {
             "Hybrid signatures (Dilithium + ECDSA)",
             "Parallel execution with thread pool (1024-9216 threads)",
             "CPU acceleration using AVX-512 and SHA-NI extensions",
+            "ssn", 
+            "FIPS 180-4 compliant hashing",
+            "Support multithreading 1024-9216 threads",
+            "Latency <10ms per request @ 100k req/sec",
+            "Hash batch-processing",
+            "account_number",
+            "algorithm AES-256-GCM per-field dengan unique IV",
+            "access control Attribute-based per field",
             "NIST PQC Standard compliance (draft)",
             "Side-channel attack resistance",
             "Key encapsulation mechanism (KEM)",
@@ -77,18 +86,21 @@ asu_file_extension_architecture = {
         "requirements": [
             "Backward/forward compatibility",
             "SHA-256 schema fingerprint",
+            "JSON internal → Dublin Core mapping auto",
             "HTTP API dengan OAuth2 authentication",
             "Metadata replication multi-AZ",
             "Point-in-time recovery 14 hari",
             "Schema validation menggunakan JSON Schema",
             "Schema references untuk nested types",
             "Protobuf schema support",
+            "JSON internal → Dublin Core mapping auto",
             "Schema diff visualization"
         ],
         "dependencies": ["fastavro>=1.8.2", "requests-oauthlib>=1.3.1", "protobuf>=4.25.3"],
         "implementation": {
             "schema_evolution_rules": [
                 "Tambah field: selalu optional dengan default null",
+                "schema diff tols: Menggunakan deepdiff untuk visualisasi perubahan skema JSON antar versi",
                 "Hapus field: hanya jika deprecated >180 hari"
             ],
             "replication_strategy": "Multi-AZ synchronous replication"
@@ -154,7 +166,7 @@ asu_file_extension_architecture = {
     
     "storage/versioning.py": {
         "description": "Immutable data versioning",
-        "production_proven": "Git LFS at Scale (Microsoft)",
+        "production_proven": "Git LFS digunakan di Microsoft Azure Repos untuk skala enterprise software deployment",
         "requirements": [
             "Content-addressable storage",
             "Deduplikasi blok biner",
@@ -395,6 +407,7 @@ asu_file_extension_architecture = {
             "Regional health checks",
             "Stateful service replication",
             "Data consistency checks",
+            "SHA-256 hash match",
             "Failover dry-run capability",
             "Geosharding support"
         ],
