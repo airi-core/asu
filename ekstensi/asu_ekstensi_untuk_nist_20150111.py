@@ -22,53 +22,32 @@ asu_file_extension_architecture = {
             "compaction_strategy": "Berdasarkan ukuran file & umur data"
         }
     },
-    
 
-"core/post_quantum_crypto.py": {
+    "core/post_quantum_crypto.py": {
+        "description": "Quantum-safe cryptography with massive parallelism",
+        "production_proven": "LibOQS (Open Quantum Safe) & Intel IPP-Crypto",
+        "requirements": [
+            "Hybrid key exchange (Kyber + ECDH)",
+            "Hybrid signatures (Dilithium + ECDSA)",
+            "Parallel execution with thread pool (1024-9216 threads)",
+            "CPU acceleration using AVX-512 and SHA-NI extensions",
+            "NIST PQC Standard compliance (draft)",
+            "Side-channel attack resistance",
+            "Key encapsulation mechanism (KEM)",
+            "Cryptographic agility",
+            "Hardware acceleration support",
+            "Thread-safe context management"
+        ],
+        "dependencies": ["liboqs-python>=0.8.0", "intel-ipp-crypto>=2021.10.0", "numpy<2.0"],
+        "implementation": {
+            "key_exchange": "Kyber-1024 + ECDH secp384r1",
+            "signature": "Dilithium5 + ECDSA secp384r1",
+            "thread_pool": "Dynamic thread pool (min=1024, max=9216)",
+            "acceleration": "AVX-512 for vectorization, SHA-NI for hashing",
+            "compliance": "NIST SP 800-208, NIST PQC Project"
+        }
+    },
 
-"description": "Quantum-safe cryptography with massive parallelism",
-
-"production_proven": "LibOQS (Open Quantum Safe) & Intel IPP-Crypto",
-
-"requirements": [
-
-"Hybrid key exchange (Kyber + ECDH)",
-
-"Hybrid signatures (Dilithium + ECDSA)",
-
-"Parallel execution with thread pool (1024-9216 threads)",
-
-"CPU acceleration using AVX-512 and SHA-NI extensions",
-
-"NIST PQC Standard compliance (draft)",
-
-"Side-channel attack resistance",
-
-"Key encapsulation mechanism (KEM)",
-
-"Cryptographic agility",
-
-"Hardware acceleration support",
-
-"Thread-safe context management"
-
-],
-
-"dependencies": ["liboqs-python>=0.8.0", "intel-ipp-crypto>=2021.10.0", "numpy<2.0"],
-
-"implementation": {
-
-"key_exchange": "Kyber-1024 + ECDH secp384r1",
-
-"signature": "Dilithium5 + ECDSA secp384r1",
-
-"thread_pool": "Dynamic thread pool (min=1024, max=9216)",
-
-"acceleration": "AVX-512 for vectorization, SHA-NI for hashing",
-
-"compliance": "NIST SP 800-208, NIST PQC Project"
-
-},
     "core/crypto.py": {
         "description": "Enkripsi end-to-end dengan rotasi kunci zero-downtime",
         "production_proven": "AWS KMS Multi-Region Keys",
@@ -91,7 +70,7 @@ asu_file_extension_architecture = {
             "audit_log_integration": "CloudTrail + S3 bucket terenkripsi"
         }
     },
-    
+
     "core/metadata.py": {
         "description": "Schema registry dengan evolusi aman",
         "production_proven": "Confluent Schema Registry",
@@ -115,63 +94,37 @@ asu_file_extension_architecture = {
             "replication_strategy": "Multi-AZ synchronous replication"
         }
     },
+
     "virtualization/wine_execution.py": {
-
-"description": "Windows applications on Linux without hardware virtualization",
-
-"production_proven": "Steam Proton with 75% game compatibility",
-
-"requirements": [
-
-"Wine 8.0+ with staging patches",
-
-"DXVK for DirectX translation",
-
-"Vulkan drivers installation",
-
-"Windows fonts package",
-
-"Audio system configuration",
-
-"Registry environment setup",
-
-"DLL override management",
-
-"Prefix isolation per application",
-
-"Performance monitoring tools",
-
-"Compatibility database access"
-
-],
-
-"dependencies": ["wine>=8.0", "winetricks>=20230212", "dxvk>=2.3", "vkd3d-proton>=2.10", "mangohud>=0.6.9.1"],
-
-"implementation": {
-
-"wine_version": "8.0 with staging patches",
-
-"graphics_stack": "DXVK 2.3 + VKD3D-Proton 2.10",
-
-"font_setup": "winetricks corefonts",
-
-"audio_system": "PulseAudio with winetricks settings",
-
-"registry_setup": "Custom .reg files applied during prefix creation",
-
-"dll_overrides": "Managed via WINEDLLOVERRIDES environment variable",
-
-"prefix_isolation": "Separate WINEPREFIX per application",
-
-"performance_monitoring": "MANGOHUD for Vulkan/OpenGL metrics",
-
-"compatibility_database": "Access via ProtonDB API",
-
-"test_frequency": "Per application deployment + weekly",
-
-"safety_controls": "Sandboxed wine prefixes (via bubblewrap) + resource limiting (via cgroups)"
-
-}
+        "description": "Windows applications on Linux without hardware virtualization",
+        "production_proven": "Steam Proton with 75% game compatibility",
+        "requirements": [
+            "Wine 8.0+ with staging patches",
+            "DXVK for DirectX translation",
+            "Vulkan drivers installation",
+            "Windows fonts package",
+            "Audio system configuration",
+            "Registry environment setup",
+            "DLL override management",
+            "Prefix isolation per application",
+            "Performance monitoring tools",
+            "Compatibility database access"
+        ],
+        "dependencies": ["wine>=8.0", "winetricks>=20230212", "dxvk>=2.3", "vkd3d-proton>=2.10", "mangohud>=0.6.9.1"],
+        "implementation": {
+            "wine_version": "8.0 with staging patches",
+            "graphics_stack": "DXVK 2.3 + VKD3D-Proton 2.10",
+            "font_setup": "winetricks corefonts",
+            "audio_system": "PulseAudio with winetricks settings",
+            "registry_setup": "Custom .reg files applied during prefix creation",
+            "dll_overrides": "Managed via WINEDLLOVERRIDES environment variable",
+            "prefix_isolation": "Separate WINEPREFIX per application",
+            "performance_monitoring": "MANGOHUD for Vulkan/OpenGL metrics",
+            "compatibility_database": "Access via ProtonDB API",
+            "test_frequency": "Per application deployment + weekly",
+            "safety_controls": "Sandboxed wine prefixes (via bubblewrap) + resource limiting (via cgroups)"
+        }
+    },
     
     # ===== STORAGE LAYER (MULTI-CLOUD) =====
     "storage/s3.py": {
