@@ -1,0 +1,118 @@
+#ifndef ASU_CONTAINER_HPP
+#define ASU_CONTAINER_HPP
+
+/*
+ * ASU Container System
+ * 
+ * Nama: Susanto
+ * NIM: 206181
+ * Universitas: Hidden Investor
+ * Pembimbing: Suwardjono
+ * Rektor: Martin
+ * 
+ * Description: Container system untuk menyimpan dan menjalankan hasil git clone
+ */
+
+#include <string>
+#include <vector>
+#include <map>
+#include <memory>
+#include <fstream>
+#include <iostream>
+#include <filesystem>
+#include <openssl/sha.h>
+#include <openssl/evp.h>
+#include <cpprest/http_listener.h>
+#include <cpprest/json.h>
+#include <archive.h>
+#include <archive_entry.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <cstdlib>
+
+namespace fs = std::filesystem;
+using namespace web;
+using namespace web::http;
+using namespace web::http::experimental::listener;
+
+class ASUContainer {
+private:
+    std::string container_path;
+    std::string sha256_hash;
+    std::map<std::string, std::string> metadata;
+    
+    // Helper methods
+    std::string calculateSHA256(const std::string& data);
+    bool createArchive(const std::string& source_dir, const std::string& output_file);
+    bool extractArchive(const std::string& archive_file, const std::string& output_dir);
+    std::string executeCommand(const std::string& command);
+    bool validateRepository(const std::string& repo_url);
+
+public:
+    ASUContainer();
+    ~ASUContainer();
+    
+    // Core functionality
+    bool cloneAndStore(const std::string& git_url, const std::string& destination = "");
+    bool loadContainer(const std::string& asu_file_path);
+    bool executeProgram(const std::string& command = "", const std::vector<std::string>& args = {});
+    
+    // Metadata management
+    void setMetadata(const std::string& key, const std::string& value);
+    std::string getMetadata(const std::string& key);
+    
+    // File operations
+    std::string getContainerPath() const { return container_path; }
+    std::string getSHA256Hash() const { return sha256_hash; }
+    bool saveContainer(const std::string& output_path = "");
+    
+    // API support
+    json::value getContainerInfo();
+    std::vector<std::string> listFiles();
+    std::string getFileContent(const std::string& file_path);
+};
+
+class ASUAPIServer {
+private:
+    std::unique_ptr<http_listener> listener;
+    std::map<std::string, std::shared_ptr<ASUContainer>> containers;
+    std::string server_address;
+    int server_port;
+    
+    void handleGet(http_request request);
+    void handlePost(http_request request);
+    void handlePut(http_request request);
+    void handleDelete(http_request request);
+    
+public:
+    ASUAPIServer(const std::string& address = "http://localhost", int port = 8080);
+    ~ASUAPIServer();
+    
+    bool startServer();
+    void stopServer();
+    bool loadContainer(const std::string& asu_file_path);
+    
+    // API endpoints
+    void setupRoutes();
+};
+
+// Utility functions
+namespace ASUUtils {
+    std::string generateSHA256(const std::string& input);
+    bool fileExists(const std::string& path);
+    bool directoryExists(const std::string& path);
+    std::string getCurrentTimestamp();
+    bool isValidGitRepository(const std::string& path);
+    std::vector<std::string> splitString(const std::string& str, char delimiter);
+}
+
+// Constants
+namespace ASUConstants {
+    const size_t MAX_CONTAINER_SIZE = 1099511627776; // 1TB in bytes
+    const std::string ASU_EXTENSION = ".asu";
+    const std::string TEMP_DIR_PREFIX = "/tmp/asu_";
+    const std::string METADATA_FILE = "asu_metadata.json";
+    const int API_TIMEOUT = 30; // seconds
+}
+
+#endif // ASU_CONTAINER_HPP

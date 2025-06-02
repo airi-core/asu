@@ -1,0 +1,120 @@
+{
+  "project": {
+    "nama": "Implementasi File Ekstensi .ASU",
+    "versi": "1.0.0",
+    "deskripsi": "Pengembangan native library dan tools untuk format file .ASU sesuai spesifikasi teknis lengkap"
+  },
+  "spesifikasi_teknis": {
+    "struktur_file": {
+      "header": {
+        "ukuran": 128,
+        "komponen": [
+          {"nama": "magic", "offset": "0x00", "ukuran": 8, "nilai": "ASUMAGIC"},
+          {"nama": "version_major", "offset": "0x08", "ukuran": 2},
+          {"nama": "format_type", "offset": "0x0C", "ukuran": 4}
+        ],
+        "alokasi_memori": "8-byte aligned"
+      },
+      "metadata": {
+        "format": "JSON",
+        "field_wajib": [
+          "docker_config",
+          "git_repositories",
+          "dependencies"
+        ]
+      },
+      "payload": {
+        "kompresi_wajib": ["ZLIB", "LZ4", "ZSTD"],
+        "enkripsi_wajib": ["AES-256-GCM"]
+      },
+      "footer": {
+        "ukuran": 64,
+        "komponen": [
+          {"nama": "footer_magic", "offset": "0x00", "ukuran": 8, "nilai": "ASUFOOTR"},
+          {"nama": "master_hash", "offset": "0x20", "ukuran": 32, "algoritma": "SHA-256"}
+        ]
+      }
+    },
+    "persyaratan_khusus": {
+      "endianness": "Little-endian untuk semua nilai multi-byte",
+      "validasi": "SHA-256 untuk integritas file",
+      "docker_integrasi": {
+        "metadata_field": "docker_config",
+        "fitur_wajib": [
+          "Git repository cloning",
+          "Dependency installation",
+          "Container isolation"
+        ]
+      }
+    }
+  },
+  "arsitektur_proyek": {
+    "struktur_direktori": {
+      "src/core/": [
+        "header.c - Parsing magic header 'ASUMAGIC'",
+        "payload.c - Stream processing untuk file besar",
+        "compression.c - Implementasi ZLIB/LZ4/ZSTD"
+      ],
+      "src/crypto/": [
+        "aes_native.c - AES-256-GCM dengan hardware acceleration",
+        "sha256_native.c - SHA-256 RFC 6234 compliant"
+      ],
+      "src/api/": [
+        "asu_api.c - Public API dengan thread safety"
+      ],
+      "tools/": [
+        "asu_creator.c - Pembuat file .ASU",
+        "asu_validator.c - Validator integritas file"
+      ]
+    },
+    "dependencies": {
+      "wajib": ["OpenSSL >=1.1.1", "zlib >=1.2.11", "liblz4 >=1.9.0"],
+      "rekomendasi": ["libjson-c >=0.15"]
+    }
+  },
+  "panduan_implementasi": {
+    "prioritas_fitur": [
+      "Validasi struktur file dan magic number",
+      "Implementasi SHA-256 untuk checksum",
+      "Dukungan kompresi ZLIB/LZ4",
+      "Integrasi Docker melalui metadata"
+    ],
+    "standar_pengodean": {
+      "bahasa": "C11/C++17",
+      "manajemen_memori": "Secure memory clearing untuk data sensitif",
+      "penanganan_error": "Kode error terstandarisasi (ASU_ERROR_INVALID_FILE, etc.)",
+      "thread_safety": "Menggunakan locking untuk operasi I/O"
+    },
+    "optimasi": {
+      "memory": "Maksimal 64MB RAM usage",
+      "kecepatan": "Parsing <1 detik untuk file 100MB",
+      "ukuran": "Footprint library <5MB"
+    }
+  },
+  "pengujian": {
+    "unit_test_wajib": [
+      "Validasi header dengan berbagai versi",
+      "Uji integritas file korup",
+      "Benchmark kompresi/dekompresi",
+      "Skenario integrasi Docker lengkap"
+    ],
+    "persyaratan_coverage": "Minimal 95% coverage fungsi inti"
+  },
+  "deliverables": {
+    "wajib": [
+      "libasu.so/dylib/dll - Native library multi-platform",
+      "asu_creator - CLI untuk pembuatan file",
+      "asu_validator - CLI untuk validasi integritas",
+      "Dokumen API lengkap"
+    ],
+    "rekomendasi": [
+      "Python binding (ctypes)",
+      "Dockerfile untuk build environment"
+    ]
+  },
+  "referensi_kritis": {
+    "header_spec": "Lihat asu_file_extension_offsets.md bagian Header Structure",
+    "docker_integration": "Lihat asu_file_extension_spec.md bagian Docker Integration Spec",
+    "contoh_implementasi": "Lihat asu_file_extension_architecture.md untuk arsitektur parser"
+  }
+}

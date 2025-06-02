@@ -1,0 +1,736 @@
+{
+  "project": {
+    "name": "asu-file-format",
+    "version": "1.0.0",
+    "description": "Native library implementation for .asu file format with Docker integration support",
+    "language": "C/C++",
+    "build_system": "CMake"
+  },
+  "directory_structure": {
+    "root": {
+      "path": "./",
+      "files": [
+        {
+          "name": "CMakeLists.txt",
+          "type": "build_config",
+          "description": "CMake build configuration untuk compile native library",
+          "required": true,
+          "content_type": "cmake"
+        },
+        {
+          "name": "Makefile",
+          "type": "build_script",
+          "description": "Alternative build script untuk systems tanpa CMake",
+          "required": true,
+          "content_type": "makefile"
+        },
+        {
+          "name": "configure.ac",
+          "type": "autotools_config",
+          "description": "Autotools configuration untuk cross-platform compatibility",
+          "required": true,
+          "content_type": "autoconf"
+        },
+        {
+          "name": "README.md",
+          "type": "documentation",
+          "description": "Project documentation dan build instructions",
+          "required": true,
+          "content_type": "markdown"
+        },
+        {
+          "name": "LICENSE",
+          "type": "legal",
+          "description": "License file untuk library distribution",
+          "required": true,
+          "content_type": "text"
+        }
+      ],
+      "subdirectories": {
+        "include": {
+          "path": "./include/",
+          "description": "Public header files untuk library API",
+          "files": [
+            {
+              "name": "asu.h",
+              "type": "header",
+              "description": "Main public API header dengan semua function declarations",
+              "required": true,
+              "functions": [
+                "asu_create_file()",
+                "asu_open_file()",
+                "asu_validate_file()",
+                "asu_read_header()",
+                "asu_write_header()",
+                "asu_extract_payload()",
+                "asu_compress_payload()",
+                "asu_verify_checksum()"
+              ]
+            },
+            {
+              "name": "asu_types.h",
+              "type": "header",
+              "description": "Data structure definitions dan type declarations",
+              "required": true,
+              "structures": [
+                "asu_header_t",
+                "asu_metadata_t",
+                "asu_footer_t",
+                "asu_file_t",
+                "asu_error_t"
+              ]
+            },
+            {
+              "name": "asu_constants.h",
+              "type": "header",
+              "description": "Constant definitions dan magic numbers",
+              "required": true,
+              "constants": [
+                "ASU_MAGIC_HEADER",
+                "ASU_MAGIC_FOOTER",
+                "ASU_VERSION_MAJOR",
+                "ASU_VERSION_MINOR",
+                "ASU_MAX_METADATA_SIZE",
+                "ASU_HEADER_SIZE",
+                "ASU_FOOTER_SIZE"
+              ]
+            },
+            {
+              "name": "asu_docker.h",
+              "type": "header",
+              "description": "Docker integration specific API declarations",
+              "required": true,
+              "functions": [
+                "asu_parse_dockerfile()",
+                "asu_extract_dependencies()",
+                "asu_execute_commands()",
+                "asu_setup_environment()"
+              ]
+            }
+          ]
+        },
+        "src": {
+          "path": "./src/",
+          "description": "Source code implementation files",
+          "files": [
+            {
+              "name": "asu_core.c",
+              "type": "source",
+              "description": "Core file format implementation dengan basic I/O operations",
+              "required": true,
+              "implements": [
+                "File header parsing",
+                "Binary data manipulation",
+                "Endianness handling",
+                "Memory management"
+              ]
+            },
+            {
+              "name": "asu_validation.c",
+              "type": "source",
+              "description": "File validation dan integrity checking implementation",
+              "required": true,
+              "implements": [
+                "Magic number verification",
+                "Checksum calculation (SHA-256)",
+                "File size validation",
+                "Structure validation"
+              ]
+            },
+            {
+              "name": "asu_compression.c",
+              "type": "source",
+              "description": "Compression/decompression algorithms implementation",
+              "required": true,
+              "algorithms": [
+                "ZLIB compression",
+                "LZ4 fast compression",
+                "BZIP2 high compression",
+                "Custom algorithm selection"
+              ]
+            },
+            {
+              "name": "asu_encryption.c",
+              "type": "source",
+              "description": "Encryption/decryption functionality implementation",
+              "required": true,
+              "algorithms": [
+                "AES-256-GCM encryption",
+                "RSA key exchange",
+                "Key derivation (PBKDF2)",
+                "Digital signatures"
+              ]
+            },
+            {
+              "name": "asu_metadata.c",
+              "type": "source",
+              "description": "Metadata parsing dan serialization implementation",
+              "required": true,
+              "implements": [
+                "JSON metadata parsing",
+                "Docker configuration extraction",
+                "Dependency tree building",
+                "Environment variable handling"
+              ]
+            },
+            {
+              "name": "asu_docker.c",
+              "type": "source",
+              "description": "Docker integration dan execution engine implementation",
+              "required": true,
+              "implements": [
+                "Container environment setup",
+                "Git repository cloning",
+                "Dependency installation",
+                "Command execution pipeline"
+              ]
+            },
+            {
+              "name": "asu_utils.c",
+              "type": "source",
+              "description": "Utility functions dan helper implementations",
+              "required": true,
+              "implements": [
+                "String manipulation",
+                "File system operations",
+                "Error handling",
+                "Logging functions"
+              ]
+            }
+          ]
+        },
+        "lib": {
+          "path": "./lib/",
+          "description": "External dependencies dan static libraries",
+          "files": [
+            {
+              "name": "libcrypto.a",
+              "type": "static_library",
+              "description": "OpenSSL crypto library untuk encryption functions",
+              "required": true,
+              "version": ">=1.1.1"
+            },
+            {
+              "name": "libz.a",
+              "type": "static_library",
+              "description": "Zlib compression library",
+              "required": true,
+              "version": ">=1.2.11"
+            },
+            {
+              "name": "liblz4.a",
+              "type": "static_library",
+              "description": "LZ4 fast compression library",
+              "required": true,
+              "version": ">=1.9.0"
+            },
+            {
+              "name": "libjson-c.a",
+              "type": "static_library",
+              "description": "JSON parsing library untuk metadata handling",
+              "required": true,
+              "version": ">=0.15"
+            }
+          ]
+        },
+        "tests": {
+          "path": "./tests/",
+          "description": "Unit tests dan integration tests",
+          "files": [
+            {
+              "name": "test_core.c",
+              "type": "test",
+              "description": "Core functionality unit tests",
+              "required": true,
+              "test_cases": [
+                "File creation/opening",
+                "Header parsing",
+                "Binary data manipulation",
+                "Memory leak detection"
+              ]
+            },
+            {
+              "name": "test_validation.c",
+              "type": "test",
+              "description": "Validation functionality unit tests",
+              "required": true,
+              "test_cases": [
+                "Magic number validation",
+                "Checksum verification",
+                "Corrupted file detection",
+                "Invalid format handling"
+              ]
+            },
+            {
+              "name": "test_compression.c",
+              "type": "test",
+              "description": "Compression algorithms unit tests",
+              "required": true,
+              "test_cases": [
+                "Compression ratio testing",
+                "Decompression accuracy",
+                "Algorithm selection",
+                "Performance benchmarks"
+              ]
+            },
+            {
+              "name": "test_docker.c",
+              "type": "test",
+              "description": "Docker integration unit tests",
+              "required": true,
+              "test_cases": [
+                "Dockerfile parsing",
+                "Git clone execution",
+                "Dependency installation",
+                "Container environment setup"
+              ]
+            },
+            {
+              "name": "integration_test.c",
+              "type": "test",
+              "description": "End-to-end integration tests",
+              "required": true,
+              "test_scenarios": [
+                "Complete file lifecycle",
+                "Docker container execution",
+                "Cross-platform compatibility",
+                "Performance stress testing"
+              ]
+            }
+          ]
+        },
+        "tools": {
+          "path": "./tools/",
+          "description": "Command-line tools dan utilities",
+          "files": [
+            {
+              "name": "asu-create.c",
+              "type": "tool",
+              "description": "Command-line tool untuk create .asu files",
+              "required": true,
+              "functionality": [
+                "Interactive file creation wizard",
+                "Batch file processing",
+                "Configuration file support",
+                "Validation before creation"
+              ]
+            },
+            {
+              "name": "asu-extract.c",
+              "type": "tool",
+              "description": "Command-line tool untuk extract .asu file contents",
+              "required": true,
+              "functionality": [
+                "Payload extraction",
+                "Metadata display",
+                "Selective extraction",
+                "Verification before extraction"
+              ]
+            },
+            {
+              "name": "asu-validate.c",
+              "type": "tool",
+              "description": "Command-line tool untuk validate .asu files",
+              "required": true,
+              "functionality": [
+                "File integrity checking",
+                "Detailed validation reports",
+                "Batch validation",
+                "Repair suggestions"
+              ]
+            },
+            {
+              "name": "asu-docker.c",
+              "type": "tool",
+              "description": "Command-line tool untuk execute Docker containers from .asu",
+              "required": true,
+              "functionality": [
+                "Container execution",
+                "Environment setup",
+                "Log monitoring",
+                "Resource management"
+              ]
+            }
+          ]
+        },
+        "examples": {
+          "path": "./examples/",
+          "description": "Example implementations dan sample files",
+          "files": [
+            {
+              "name": "simple_create.c",
+              "type": "example",
+              "description": "Simple example untuk create basic .asu file",
+              "required": true,
+              "demonstrates": [
+                "Basic API usage",
+                "File creation workflow",
+                "Error handling patterns"
+              ]
+            },
+            {
+              "name": "docker_integration.c",
+              "type": "example",
+              "description": "Advanced example dengan Docker integration",
+              "required": true,
+              "demonstrates": [
+                "Complex metadata handling",
+                "Docker container setup",
+                "Git repository processing"
+              ]
+            },
+            {
+              "name": "sample.asu",
+              "type": "sample_file",
+              "description": "Sample .asu file untuk testing purposes",
+              "required": true,
+              "contains": [
+                "Valid header structure",
+                "Sample metadata",
+                "Test payload data",
+                "Proper footer"
+              ]
+            }
+          ]
+        },
+        "docs": {
+          "path": "./docs/",
+          "description": "Documentation dan specifications",
+          "files": [
+            {
+              "name": "file_format_spec.md",
+              "type": "specification",
+              "description": "Complete .asu file format specification",
+              "required": true,
+              "sections": [
+                "Binary structure layout",
+                "Field definitions",
+                "Compression algorithms",
+                "Encryption methods"
+              ]
+            },
+            {
+              "name": "api_reference.md",
+              "type": "documentation",
+              "description": "Complete API reference documentation",
+              "required": true,
+              "sections": [
+                "Function signatures",
+                "Parameter descriptions",
+                "Return values",
+                "Error codes"
+              ]
+            },
+            {
+              "name": "build_instructions.md",
+              "type": "documentation",
+              "description": "Detailed build dan installation instructions",
+              "required": true,
+              "platforms": [
+                "Linux (Ubuntu/CentOS/Arch)",
+                "macOS (Intel/Apple Silicon)",
+                "Windows (MinGW/MSVC)",
+                "FreeBSD/OpenBSD"
+              ]
+            },
+            {
+              "name": "docker_integration.md",
+              "type": "documentation",
+              "description": "Docker integration guide dan best practices",
+              "required": true,
+              "topics": [
+                "Container configuration",
+                "Git repository handling",
+                "Dependency management",
+                "Security considerations"
+              ]
+            }
+          ]
+        },
+        "scripts": {
+          "path": "./scripts/",
+          "description": "Build scripts dan automation tools",
+          "files": [
+            {
+              "name": "build.sh",
+              "type": "script",
+              "description": "Main build script untuk all platforms",
+              "required": true,
+              "functionality": [
+                "Cross-platform detection",
+                "Dependency checking",
+                "Compilation automation",
+                "Testing execution"
+              ]
+            },
+            {
+              "name": "test.sh",
+              "type": "script",
+              "description": "Automated testing script",
+              "required": true,
+              "functionality": [
+                "Unit test execution",
+                "Integration test running",
+                "Coverage reporting",
+                "Performance benchmarking"
+              ]
+            },
+            {
+              "name": "install.sh",
+              "type": "script",
+              "description": "Installation script untuk system-wide deployment",
+              "required": true,
+              "functionality": [
+                "Library installation",
+                "Header file copying",
+                "Tool installation",
+                "Path configuration"
+              ]
+            },
+            {
+              "name": "package.sh",
+              "type": "script",
+              "description": "Packaging script untuk distribution",
+              "required": true,
+              "formats": [
+                "Source tarball",
+                "Binary packages",
+                "Docker images",
+                "Package manager formats"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "build_requirements": {
+    "system_dependencies": [
+      {
+        "name": "gcc",
+        "version": ">=9.0",
+        "description": "GCC compiler dengan C99/C11 support"
+      },
+      {
+        "name": "cmake",
+        "version": ">=3.16",
+        "description": "CMake build system"
+      },
+      {
+        "name": "make",
+        "version": ">=4.0",
+        "description": "GNU Make utility"
+      },
+      {
+        "name": "pkg-config",
+        "version": ">=0.29",
+        "description": "Package configuration tool"
+      }
+    ],
+    "library_dependencies": [
+      {
+        "name": "openssl-dev",
+        "version": ">=1.1.1",
+        "description": "OpenSSL development headers"
+      },
+      {
+        "name": "zlib-dev",
+        "version": ">=1.2.11",
+        "description": "Zlib development headers"
+      },
+      {
+        "name": "liblz4-dev",
+        "version": ">=1.9.0",
+        "description": "LZ4 development headers"
+      },
+      {
+        "name": "libjson-c-dev",
+        "version": ">=0.15",
+        "description": "JSON-C development headers"
+      }
+    ]
+  },
+  "compilation_targets": {
+    "static_library": {
+      "name": "libasu.a",
+      "description": "Static library untuk linking dengan applications",
+      "output_path": "./build/lib/"
+    },
+    "shared_library": {
+      "name": "libasu.so",
+      "description": "Shared library untuk dynamic linking",
+      "output_path": "./build/lib/"
+    },
+    "command_tools": [
+      {
+        "name": "asu-create",
+        "description": "File creation tool",
+        "output_path": "./build/bin/"
+      },
+      {
+        "name": "asu-extract",
+        "description": "File extraction tool",
+        "output_path": "./build/bin/"
+      },
+      {
+        "name": "asu-validate",
+        "description": "File validation tool",
+        "output_path": "./build/bin/"
+      },
+      {
+        "name": "asu-docker",
+        "description": "Docker execution tool",
+        "output_path": "./build/bin/"
+      }
+    ]
+  },
+  "file_format_implementation": {
+    "header_structure": {
+      "magic_number": {
+        "offset": "0x00",
+        "size": 8,
+        "value": "WASUENT\\0",
+        "description": "File format identifier"
+      },
+      "version": {
+        "major": {
+          "offset": "0x08",
+          "size": 2,
+          "description": "Major version number"
+        },
+        "minor": {
+          "offset": "0x0A",
+          "size": 2,
+          "description": "Minor version number"
+        }
+      },
+      "format_type": {
+        "offset": "0x0C",
+        "size": 4,
+        "description": "Format type identifier"
+      },
+      "sizes": {
+        "header_size": {
+          "offset": "0x10",
+          "size": 8,
+          "description": "Total header size"
+        },
+        "metadata_size": {
+          "offset": "0x18",
+          "size": 8,
+          "description": "Metadata section size"
+        },
+        "payload_size": {
+          "offset": "0x20",
+          "size": 8,
+          "description": "Payload section size"
+        },
+        "footer_offset": {
+          "offset": "0x28",
+          "size": 8,
+          "description": "Footer section offset"
+        }
+      },
+      "flags": {
+        "compression": {
+          "offset": "0x30",
+          "size": 1,
+          "description": "Compression algorithm used"
+        },
+        "encryption": {
+          "offset": "0x31",
+          "size": 1,
+          "description": "Encryption algorithm used"
+        },
+        "integrity": {
+          "offset": "0x32",
+          "size": 1,
+          "description": "Integrity check method"
+        },
+        "features": {
+          "offset": "0x34",
+          "size": 4,
+          "description": "Feature flags bitfield"
+        }
+      },
+      "timestamp": {
+        "offset": "0x38",
+        "size": 8,
+        "description": "File creation timestamp (Unix epoch)"
+      }
+    },
+    "metadata_structure": {
+      "format": "JSON",
+      "encoding": "UTF-8",
+      "fields": [
+        "docker_config",
+        "git_repositories",
+        "dependencies",
+        "environment_variables",
+        "execution_commands",
+        "resource_limits"
+      ]
+    },
+    "footer_structure": {
+      "magic_footer": {
+        "offset": "0x00",
+        "size": 8,
+        "value": "WASUFTR\\0",
+        "description": "Footer identifier"
+      },
+      "file_size": {
+        "offset": "0x08",
+        "size": 8,
+        "description": "Total file size"
+      },
+      "checksum": {
+        "offset": "0x10",
+        "size": 16,
+        "algorithm": "SHA-256",
+        "description": "File integrity checksum"
+      },
+      "end_marker": {
+        "offset": "0x20",
+        "size": 8,
+        "value": "ENDFILE\\0",
+        "description": "End of file marker"
+      }
+    }
+  },
+  "docker_integration_spec": {
+    "supported_features": [
+      "Git repository cloning",
+      "Dependency installation",
+      "Environment setup",
+      "Command execution",
+      "Container isolation",
+      "Resource management"
+    ],
+    "metadata_fields": {
+      "docker_config": {
+        "base_image": "Base Docker image to use",
+        "working_directory": "Container working directory",
+        "user": "Container user context",
+        "environment": "Environment variables"
+      },
+      "git_repositories": [
+        {
+          "url": "Git repository URL",
+          "branch": "Target branch",
+          "path": "Local path to clone",
+          "credentials": "Authentication credentials"
+        }
+      ],
+      "dependencies": {
+        "system_packages": "System packages to install",
+        "language_packages": "Language-specific packages",
+        "custom_commands": "Custom installation commands"
+      },
+      "execution": {
+        "pre_commands": "Commands to run before main execution",
+        "main_commands": "Main execution commands",
+        "post_commands": "Cleanup commands"
+      }
+    }
+  }
+}

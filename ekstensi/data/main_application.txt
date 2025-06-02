@@ -1,0 +1,226 @@
+#include "ASUContainer.hpp"
+#include <iostream>
+#include <memory>
+#include <signal.h>
+
+using namespace ASUSystem;
+
+std::unique_ptr<APIServer> global_server;
+std::unique_ptr<ContainerManager> global_manager;
+
+void signalHandler(int signal) {
+    std::cout << "\nMenerima sinyal shutdown, membersihkan resources..." << std::endl;
+    
+    if (global_server) {
+        global_server->stopServer();
+    }
+    
+    if (global_manager) {
+        global_manager->performMaintenance();
+    }
+    
+    exit(0);
+}
+
+void printApplicationHeader() {
+    std::cout << "================================================" << std::endl;
+    std::cout << "ASU Container System - Git Native Implementation" << std::endl;
+    std::cout << "================================================" << std::endl;
+    std::cout << "Nama: Susanto (NIM: 206181)" << std::endl;
+    std::cout << "Universitas: Hidden Investor" << std::endl;
+    std::cout << "Pembimbing: Suwardjono" << std::endl;
+    std::cout << "Rektor: Martin" << std::endl;
+    std::cout << "================================================" << std::endl;
+    std::cout << "Sistem container git dengan keamanan dan isolasi" << std::endl;
+    std::cout << "untuk memenuhi standar IBM dan spesifikasi akademis" << std::endl;
+    std::cout << "================================================" << std::endl;
+}
+
+void printUsageInstructions() {
+    std::cout << "\nCara Penggunaan:" << std::endl;
+    std::cout << "1. Jalankan server API: ./asu_container server" << std::endl;
+    std::cout << "2. Buat container baru: ./asu_container create <git_url>" << std::endl;
+    std::cout << "3. Eksekusi container: ./asu_container exec <sha256_id> <command>" << std::endl;
+    std::cout << "4. List containers: ./asu_container list" << std::endl;
+    std::cout << "5. Hapus container: ./asu_container delete <sha256_id>" << std::endl;
+    std::cout << "\nContoh:" << std::endl;
+    std::cout << "./asu_container create https://github.com/example/repo.git" << std::endl;
+    std::cout << "./asu_container exec abc123def456 \"make && ./program\"" << std::endl;
+}
+
+int runServer(int port) {
+    global_server = std::make_unique<APIServer>(port);
+    global_manager = std::make_unique<ContainerManager>("/var/lib/asu_containers");
+    
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+    
+    std::cout << "Memulai ASU Container Server pada port " << port << std::endl;
+    
+    if (!global_server->startServer()) {
+        std::cerr << "Gagal memulai server" << std::endl;
+        return 1;
+    }
+    
+    std::cout << "Server berjalan. Tekan Ctrl+C untuk menghentikan." << std::endl;
+    
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        
+        if (global_manager) {
+            static int maintenance_counter = 0;
+            if (++maintenance_counter >= 300) {
+                global_manager->performMaintenance();
+                maintenance_counter = 0;
+            }
+        }
+    }
+    
+    return 0;
+}
+
+int createContainer(const std::string& git_url) {
+    std::cout << "Membuat container baru untuk repository: " << git_url << std::endl;
+    
+    ContainerManager manager("/var/lib/asu_containers");
+    auto container = manager.createNewContainer(git_url);
+    
+    if (!container) {
+        std::cerr << "Gagal membuat container untuk repository: " << git_url << std::endl;
+        return 1;
+    }
+    
+    std::cout << "Container berhasil dibuat!" << std::endl;
+    std::cout << "Container ID: " << container->getContainerID() << std::endl;
+    std::cout << "SHA256: " << container->generateSHA256(git_url + Utils::getCurrentTimestamp()) << std::endl;
+    std::cout << "Path: " << container->getContainerPath() << std::endl;
+    std::cout << "Ukuran: " << container->getContainerSize() << " bytes" << std::endl;
+    
+    return 0;
+}
+
+int executeContainer(const std::string& sha256_id, const std::string& command) {
+    std::cout << "Mengeksekusi command dalam container: " << sha256_id << std::endl;
+    std::cout << "Command: " << command << std::endl;
+    
+    ContainerManager manager("/var/lib/asu_containers");
+    auto container = manager.loadContainer(sha256_id);
+    
+    if (!container) {
+        std::cerr << "Container tidak ditemukan: " << sha256_id << std::endl;
+        return 1;
+    }
+    
+    std::cout << "Memulai eksekusi..." << std::endl;
+    
+    bool success = container->executeProgram(command);
+    
+    if (success) {
+        std::cout << "Eksekusi berhasil!" << std::endl;
+    } else {
+        std::cerr << "Eksekusi gagal!" << std::endl;
+        return 1;
+    }
+    
+    return 0;
+}
+
+int listContainers() {
+    std::cout << "Daftar containers yang tersedia:" << std::endl;
+    
+    ContainerManager manager("/var/lib/asu_containers");
+    auto containers = manager.listContainers();
+    
+    if (containers.empty()) {
+        std::cout << "Tidak ada container yang ditemukan." << std::endl;
+        return 0;
+    }
+    
+    std::cout << std::left << std::setw(20) << "SHA256 ID" 
+              << std::setw(15) << "Status" 
+              << std::setw(12) << "Ukuran" 
+              << "Path" << std::endl;
+    std::cout << std::string(80, '-') << std::endl;
+    
+    for (const auto& container_id : containers) {
+        auto container = manager.loadContainer(container_id);
+        if (container) {
+            std::cout << std::left << std::setw(20) << container_id.substr(0, 16)
+                      << std::setw(15) << "Active"
+                      << std::setw(12) << (container->getContainerSize() / 1024) << "KB"
+                      << container->getContainerPath() << std::endl;
+        }
+    }
+    
+    std::cout << "\nTotal storage usage: " 
+              << (manager.getTotalStorageUsage() / 1024 / 1024) << " MB" << std::endl;
+    
+    return 0;
+}
+
+int deleteContainer(const std::string& sha256_id) {
+    std::cout << "Menghapus container: " << sha256_id << std::endl;
+    
+    ContainerManager manager("/var/lib/asu_containers");
+    
+    if (!manager.deleteContainer(sha256_id)) {
+        std::cerr << "Gagal menghapus container: " << sha256_id << std::endl;
+        return 1;
+    }
+    
+    std::cout << "Container berhasil dihapus!" << std::endl;
+    return 0;
+}
+
+int main(int argc, char* argv[]) {
+    printApplicationHeader();
+    
+    if (argc < 2) {
+        printUsageInstructions();
+        return 1;
+    }
+    
+    std::string command = argv[1];
+    
+    try {
+        if (command == "server") {
+            int port = (argc > 2) ? std::stoi(argv[2]) : 8080;
+            return runServer(port);
+        }
+        else if (command == "create") {
+            if (argc < 3) {
+                std::cerr << "Error: Git URL diperlukan untuk membuat container" << std::endl;
+                return 1;
+            }
+            return createContainer(argv[2]);
+        }
+        else if (command == "exec") {
+            if (argc < 4) {
+                std::cerr << "Error: SHA256 ID dan command diperlukan untuk eksekusi" << std::endl;
+                return 1;
+            }
+            return executeContainer(argv[2], argv[3]);
+        }
+        else if (command == "list") {
+            return listContainers();
+        }
+        else if (command == "delete") {
+            if (argc < 3) {
+                std::cerr << "Error: SHA256 ID diperlukan untuk menghapus container" << std::endl;
+                return 1;
+            }
+            return deleteContainer(argv[2]);
+        }
+        else {
+            std::cerr << "Command tidak dikenal: " << command << std::endl;
+            printUsageInstructions();
+            return 1;
+        }
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
+    
+    return 0;
+}

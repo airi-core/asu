@@ -1,0 +1,106 @@
+# ASU Container System - Makefile
+# Proyek Tugas Akhir: Susanto (NIM: 206181)
+# Universitas: Hidden Investor
+# Pembimbing: Suwardjono, Rektor: Martin
+
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -pthread
+INCLUDES = -I/usr/include/jsoncpp -I/usr/include/openssl -I/usr/include/libarchive -I/usr/include/curl
+LIBS = -ljsoncpp -lssl -lcrypto -larchive -lcurl -lpthread
+
+SRCDIR = src
+OBJDIR = obj
+BINDIR = bin
+
+SOURCES = $(wildcard $(SRCDIR)/*.cpp)
+OBJECTS = $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+TARGET = $(BINDIR)/asu_container
+
+.PHONY: all clean install uninstall test docker
+
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS) | $(BINDIR)
+	$(CXX) $(OBJECTS) -o $@ $(LIBS)
+	@echo "Build sukses: ASU Container System siap digunakan"
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+$(BINDIR):
+	mkdir -p $(BINDIR)
+
+clean:
+	rm -rf $(OBJDIR) $(BINDIR)
+	@echo "Direktori build dibersihkan"
+
+install: $(TARGET)
+	sudo mkdir -p /usr/local/bin
+	sudo mkdir -p /var/lib/asu_containers
+	sudo mkdir -p /etc/asu_container
+	sudo cp $(TARGET) /usr/local/bin/
+	sudo chmod +x /usr/local/bin/asu_container
+	sudo chown root:root /usr/local/bin/asu_container
+	sudo chmod 755 /var/lib/asu_containers
+	@echo "ASU Container System berhasil diinstall"
+
+uninstall:
+	sudo rm -f /usr/local/bin/asu_container
+	sudo rm -rf /var/lib/asu_containers
+	sudo rm -rf /etc/asu_container
+	@echo "ASU Container System berhasil diuninstall"
+
+test: $(TARGET)
+	@echo "Menjalankan test suite..."
+	./$(TARGET) create https://github.com/octocat/Hello-World.git
+	./$(TARGET) list
+	@echo "Test dasar completed"
+
+docker: 
+	docker build -t asu-container-system .
+	@echo "Docker image berhasil dibuild"
+
+dependencies:
+	@echo "Installing dependencies..."
+	sudo apt-get update
+	sudo apt-get install -y build-essential cmake
+	sudo apt-get install -y libssl-dev libcurl4-openssl-dev
+	sudo apt-get install -y libjsoncpp-dev libarchive-dev
+	sudo apt-get install -y git python3 python3-venv
+	@echo "Dependencies berhasil diinstall"
+
+format:
+	find $(SRCDIR) -name "*.cpp" -o -name "*.hpp" | xargs clang-format -i
+	@echo "Code formatting completed"
+
+static-analysis:
+	cppcheck --enable=all --std=c++17 $(SRCDIR)/
+	@echo "Static analysis completed"
+
+performance-test: $(TARGET)
+	@echo "Running performance tests..."
+	time ./$(TARGET) create https://github.com/microsoft/vscode.git
+	@echo "Performance test completed"
+
+security-scan:
+	@echo "Running security scan..."
+	bandit -r $(SRCDIR)/ || true
+	@echo "Security scan completed"
+
+help:
+	@echo "ASU Container System - Available Targets:"
+	@echo "  all              - Build aplikasi (default)"
+	@echo "  clean            - Bersihkan build files"
+	@echo "  install          - Install ke sistem"
+	@echo "  uninstall        - Uninstall dari sistem"
+	@echo "  test             - Jalankan basic tests"
+	@echo "  docker           - Build Docker image"
+	@echo "  dependencies     - Install system dependencies"
+	@echo "  format           - Format code dengan clang-format"
+	@echo "  static-analysis  - Jalankan static code analysis"
+	@echo "  performance-test - Test performa aplikasi"
+	@echo "  security-scan    - Scan keamanan kode"
+	@echo "  help             - Tampilkan help ini"

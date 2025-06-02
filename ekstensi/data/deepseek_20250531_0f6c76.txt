@@ -1,0 +1,26 @@
+0x0000: [HEADER] 64 byte
+  ├─ 0x00: Magic number "WASUENT" (8 byte)
+  ├─ 0x08: Version major (2 byte)
+  ├─ 0x0A: Version minor (2 byte)
+  ├─ 0x0C: Format type (4 byte)
+  ├─ 0x10: Header size (8 byte)
+  ├─ 0x18: Metadata size (8 byte)
+  ├─ 0x20: Payload size (8 byte)
+  ├─ 0x28: Footer offset (8 byte)
+  ├─ 0x30: Compression type (1 byte)
+  ├─ 0x31: Encryption type (1 byte)
+  ├─ 0x32: Integrity type (1 byte)
+  ├─ 0x34: Feature flags (4 byte)
+  └─ 0x38: Creation time (8 byte)
+
+0x0040: [METADATA] Variabel
+  └─ Berisi konfigurasi Docker dan lainnya
+
+0xXXXX: [PAYLOAD] Variabel
+  └─ Data terkompresi
+
+0xYYYY: [FOOTER] 32 byte
+  ├─ 0x00: Magic number "WASUFTR" (8 byte)
+  ├─ 0x08: File size (8 byte)
+  ├─ 0x10: Checksum (16 byte)
+  └─ 0x20: End marker (8 byte)

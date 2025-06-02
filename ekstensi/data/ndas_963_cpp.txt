@@ -1,0 +1,557 @@
+#include <iostream>
+#include <vector>
+#include <array>
+#include <cstdint>
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <chrono>
+#include <algorithm>
+#include <iomanip>
+
+// NDAS Package Constants
+class NDASConfig {
+public:
+    static const int NDAS_CORE_COUNT = 963;
+    static const int CLUSTER_SIZE = 321;
+    static const int NUM_CLUSTERS = 3;
+    static const int NONCE_BUFFER_SIZE = 64;
+    static const int MAX_TEMP_THRESHOLD = 85;
+    
+    // SHA-256 Constants
+    static const std::array<uint32_t, 64> SHA256_K;
+    static const std::array<uint32_t, 8> SHA256_H_INIT;
+};
+
+// SHA-256 Constants Implementation
+const std::array<uint32_t, 64> NDASConfig::SHA256_K = {{
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+    0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+    0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+    0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+    0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+}};
+
+const std::array<uint32_t, 8> NDASConfig::SHA256_H_INIT = {{
+    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+}};
+
+// Type Definitions
+enum class CoreState {
+    IDLE,
+    ACTIVE,
+    THROTTLED,
+    SHUTDOWN
+};
+
+using BlockHeader = std::array<uint32_t, 20>;  // 80 bytes = 20 uint32_t
+using HashResult = std::array<uint32_t, 8>;    // 256 bits = 8 uint32_t
+
+// SHA-256 Engine Class
+class SHA256Engine {
+private:
+    std::array<uint32_t, 64> w;
+    std::array<uint32_t, 8> h;
+    uint32_t a, b, c, d, e, f, g, h_reg;
+    int round_cnt;
+    int state;
+    bool done_flag;
+    bool valid_flag;
+    
+    // SHA-256 Helper Functions
+    uint32_t rotr(uint32_t x, int n) {
+        return (x >> n) | (x << (32 - n));
+    }
+    
+    uint32_t ch(uint32_t x, uint32_t y, uint32_t z) {
+        return (x & y) ^ ((~x) & z);
+    }
+    
+    uint32_t maj(uint32_t x, uint32_t y, uint32_t z) {
+        return (x & y) ^ (x & z) ^ (y & z);
+    }
+    
+    uint32_t sig0(uint32_t x) {
+        return rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22);
+    }
+    
+    uint32_t sig1(uint32_t x) {
+        return rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25);
+    }
+    
+    uint32_t gamma0(uint32_t x) {
+        return rotr(x, 7) ^ rotr(x, 18) ^ (x >> 3);
+    }
+    
+    uint32_t gamma1(uint32_t x) {
+        return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10);
+    }
+    
+public:
+    SHA256Engine() : round_cnt(0), state(0), done_flag(false), valid_flag(false) {
+        reset();
+    }
+    
+    void reset() {
+        state = 0;
+        round_cnt = 0;
+        done_flag = false;
+        valid_flag = false;
+        h = NDASConfig::SHA256_H_INIT;
+    }
+    
+    bool start(const BlockHeader& block_data, uint32_t nonce) {
+        if (state != 0) return false;
+        
+        reset();
+        state = 1;
+        
+        // Process the computation immediately (non-pipelined for simplicity)
+        return computeHash(block_data, nonce);
+    }
+    
+    bool computeHash(const BlockHeader& block_data, uint32_t nonce) {
+        // Initialize W array (first 16 words)
+        for (int i = 0; i < 16; i++) {
+            if (i < 15) {
+                w[i] = block_data[i];
+            } else {
+                w[15] = nonce; // Insert nonce
+            }
+        }
+        
+        // Extend W array (words 16-63)
+        for (int i = 16; i < 64; i++) {
+            w[i] = gamma1(w[i-2]) + w[i-7] + gamma0(w[i-15]) + w[i-16];
+        }
+        
+        // Initialize working variables
+        a = h[0]; b = h[1]; c = h[2]; d = h[3];
+        e = h[4]; f = h[5]; g = h[6]; h_reg = h[7];
+        
+        // Main compression loop
+        for (int i = 0; i < 64; i++) {
+            uint32_t t1 = h_reg + sig1(e) + ch(e, f, g) + NDASConfig::SHA256_K[i] + w[i];
+            uint32_t t2 = sig0(a) + maj(a, b, c);
+            
+            h_reg = g;
+            g = f;
+            f = e;
+            e = d + t1;
+            d = c;
+            c = b;
+            b = a;
+            a = t1 + t2;
+        }
+        
+        // Add compressed chunk to hash
+        h[0] += a;
+        h[1] += b;
+        h[2] += c;
+        h[3] += d;
+        h[4] += e;
+        h[5] += f;
+        h[6] += g;
+        h[7] += h_reg;
+        
+        done_flag = true;
+        valid_flag = true;
+        state = 0;
+        
+        return true;
+    }
+    
+    bool isDone() const { return done_flag; }
+    bool isValid() const { return valid_flag; }
+    
+    HashResult getHashResult() const {
+        HashResult result;
+        std::copy(h.begin(), h.end(), result.begin());
+        return result;
+    }
+};
+
+// Mining Core Class
+class MiningCore {
+private:
+    int core_id;
+    SHA256Engine sha_engine;
+    CoreState state;
+    uint32_t current_nonce;
+    uint32_t start_nonce;
+    uint32_t nonce_range;
+    uint32_t max_nonce;
+    uint32_t hash_counter;
+    uint8_t temperature;
+    
+    std::atomic<bool> solution_found;
+    uint32_t winning_nonce;
+    HashResult winning_hash;
+    BlockHeader block_header;
+    HashResult target_hash;
+    
+    bool hashMeetsTarget(const HashResult& computed_hash, const HashResult& target) {
+        for (int i = 0; i < 8; i++) {
+            if (computed_hash[i] > target[i]) {
+                return false;
+            } else if (computed_hash[i] < target[i]) {
+                return true;
+            }
+        }
+        return true;
+    }
+    
+public:
+    MiningCore(int id) : core_id(id), state(CoreState::IDLE), 
+                        current_nonce(0), hash_counter(0), 
+                        temperature(45), solution_found(false) {}
+    
+    void initialize(const BlockHeader& header, const HashResult& target, 
+                   uint32_t start, uint32_t range) {
+        block_header = header;
+        target_hash = target;
+        start_nonce = start;
+        nonce_range = range;
+        max_nonce = start_nonce + nonce_range;
+        current_nonce = start_nonce;
+        hash_counter = 0;
+        solution_found = false;
+        state = CoreState::ACTIVE;
+        
+        // Simulate temperature variation
+        temperature = 45 + (core_id % 40);
+    }
+    
+    void mine() {
+        if (state != CoreState::ACTIVE) return;
+        
+        // Temperature throttling
+        if (temperature > NDASConfig::MAX_TEMP_THRESHOLD) {
+            state = CoreState::THROTTLED;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            if (temperature <= (NDASConfig::MAX_TEMP_THRESHOLD - 10)) {
+                state = CoreState::ACTIVE;
+            }
+            return;
+        }
+        
+        // Check if we've exhausted our nonce range
+        if (current_nonce >= max_nonce) {
+            state = CoreState::IDLE;
+            return;
+        }
+        
+        // Compute hash for current nonce
+        if (sha_engine.start(block_header, current_nonce)) {
+            hash_counter++;
+            
+            if (sha_engine.isDone() && sha_engine.isValid()) {
+                HashResult computed_hash = sha_engine.getHashResult();
+                
+                if (hashMeetsTarget(computed_hash, target_hash)) {
+                    // Solution found!
+                    solution_found = true;
+                    winning_nonce = current_nonce;
+                    winning_hash = computed_hash;
+                    state = CoreState::IDLE;
+                    return;
+                }
+                
+                current_nonce++;
+            }
+        }
+    }
+    
+    bool hasSolution() const { return solution_found.load(); }
+    uint32_t getWinningNonce() const { return winning_nonce; }
+    HashResult getWinningHash() const { return winning_hash; }
+    uint32_t getHashCount() const { return hash_counter; }
+    CoreState getState() const { return state; }
+    uint8_t getTemperature() const { return temperature; }
+    void enable() { if (state == CoreState::IDLE) state = CoreState::ACTIVE; }
+    void disable() { state = CoreState::IDLE; }
+};
+
+// Cluster Controller Class
+class ClusterController {
+private:
+    int cluster_id;
+    std::vector<std::unique_ptr<MiningCore>> cores;
+    std::vector<std::thread> core_threads;
+    std::atomic<bool> mining_active;
+    std::atomic<bool> solution_found;
+    
+    std::mutex solution_mutex;
+    uint32_t winning_nonce;
+    HashResult winning_hash;
+    
+public:
+    ClusterController(int id) : cluster_id(id), mining_active(false), solution_found(false) {
+        // Initialize cores
+        cores.reserve(NDASConfig::CLUSTER_SIZE);
+        for (int i = 0; i < NDASConfig::CLUSTER_SIZE; i++) {
+            cores.push_back(std::make_unique<MiningCore>(cluster_id * NDASConfig::CLUSTER_SIZE + i));
+        }
+    }
+    
+    ~ClusterController() {
+        stopMining();
+    }
+    
+    void startMining(const BlockHeader& block_header, const HashResult& target_hash, uint32_t base_nonce) {
+        stopMining(); // Stop any existing mining
+        
+        mining_active = true;
+        solution_found = false;
+        
+        // Initialize and start all cores
+        for (int i = 0; i < NDASConfig::CLUSTER_SIZE; i++) {
+            uint32_t core_start_nonce = base_nonce + (i * 1000);
+            cores[i]->initialize(block_header, target_hash, core_start_nonce, 1000);
+            
+            // Start mining thread for this core
+            core_threads.emplace_back([this, i]() {
+                while (mining_active && !solution_found && cores[i]->getState() != CoreState::IDLE) {
+                    cores[i]->mine();
+                    
+                    if (cores[i]->hasSolution()) {
+                        std::lock_guard<std::mutex> lock(solution_mutex);
+                        if (!solution_found) {
+                            solution_found = true;
+                            winning_nonce = cores[i]->getWinningNonce();
+                            winning_hash = cores[i]->getWinningHash();
+                        }
+                        break;
+                    }
+                    
+                    // Small delay to prevent CPU overload in simulation
+                    std::this_thread::sleep_for(std::chrono::microseconds(1));
+                }
+            });
+        }
+    }
+    
+    void stopMining() {
+        mining_active = false;
+        
+        // Wait for all threads to complete
+        for (auto& thread : core_threads) {
+            if (thread.joinable()) {
+                thread.join();
+            }
+        }
+        core_threads.clear();
+        
+        // Disable all cores
+        for (auto& core : cores) {
+            core->disable();
+        }
+    }
+    
+    bool hasSolution() const { return solution_found.load(); }
+    uint32_t getWinningNonce() const { return winning_nonce; }
+    HashResult getWinningHash() const { return winning_hash; }
+    
+    uint32_t getTotalHashCount() const {
+        uint32_t total = 0;
+        for (const auto& core : cores) {
+            total += core->getHashCount();
+        }
+        return total;
+    }
+    
+    int getActiveCores() const {
+        int active = 0;
+        for (const auto& core : cores) {
+            if (core->getState() == CoreState::ACTIVE) {
+                active++;
+            }
+        }
+        return active;
+    }
+};
+
+// Top Level NDAS_963 System
+class NDAS963System {
+private:
+    std::vector<std::unique_ptr<ClusterController>> clusters;
+    std::atomic<bool> system_mining_active;
+    std::atomic<bool> system_solution_found;
+    
+    std::mutex system_mutex;
+    uint32_t system_winning_nonce;
+    HashResult system_winning_hash;
+    uint32_t global_nonce_counter;
+    
+public:
+    NDAS963System() : system_mining_active(false), system_solution_found(false), global_nonce_counter(0) {
+        // Initialize clusters
+        clusters.reserve(NDASConfig::NUM_CLUSTERS);
+        for (int i = 0; i < NDASConfig::NUM_CLUSTERS; i++) {
+            clusters.push_back(std::make_unique<ClusterController>(i));
+        }
+        
+        std::cout << "NDAS_963 Bitcoin Mining System Initialized\n";
+        std::cout << "Total Cores: " << NDASConfig::NDAS_CORE_COUNT << "\n";
+        std::cout << "Clusters: " << NDASConfig::NUM_CLUSTERS << "\n";
+        std::cout << "Cores per Cluster: " << NDASConfig::CLUSTER_SIZE << "\n\n";
+    }
+    
+    ~NDAS963System() {
+        stopMining();
+    }
+    
+    void startMining(const BlockHeader& block_header, const HashResult& target_hash) {
+        stopMining(); // Stop any existing mining
+        
+        system_mining_active = true;
+        system_solution_found = false;
+        global_nonce_counter = 0;
+        
+        std::cout << "Starting mining operation...\n";
+        std::cout << "Target: ";
+        for (uint32_t val : target_hash) {
+            std::cout << std::hex << std::setw(8) << std::setfill('0') << val << " ";
+        }
+        std::cout << std::dec << "\n\n";
+        
+        // Start all clusters
+        for (int i = 0; i < NDASConfig::NUM_CLUSTERS; i++) {
+            uint32_t cluster_base_nonce = global_nonce_counter + (i * 100000);
+            clusters[i]->startMining(block_header, target_hash, cluster_base_nonce);
+        }
+        
+        // Monitor for solutions
+        std::thread monitor_thread([this]() {
+            while (system_mining_active && !system_solution_found) {
+                for (int i = 0; i < NDASConfig::NUM_CLUSTERS; i++) {
+                    if (clusters[i]->hasSolution()) {
+                        std::lock_guard<std::mutex> lock(system_mutex);
+                        if (!system_solution_found) {
+                            system_solution_found = true;
+                            system_winning_nonce = clusters[i]->getWinningNonce();
+                            system_winning_hash = clusters[i]->getWinningHash();
+                            
+                            std::cout << "\n*** SOLUTION FOUND! ***\n";
+                            std::cout << "Winning Nonce: 0x" << std::hex << std::setw(8) 
+                                     << std::setfill('0') << system_winning_nonce << std::dec << "\n";
+                            std::cout << "Hash: ";
+                            for (uint32_t val : system_winning_hash) {
+                                std::cout << std::hex << std::setw(8) << std::setfill('0') << val << " ";
+                            }
+                            std::cout << std::dec << "\n";
+                        }
+                        break;
+                    }
+                }
+                
+                // Update global nonce counter
+                global_nonce_counter += 300000; // 3 clusters * 100k
+                
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        });
+        
+        monitor_thread.detach();
+    }
+    
+    void stopMining() {
+        system_mining_active = false;
+        
+        for (auto& cluster : clusters) {
+            cluster->stopMining();
+        }
+        
+        std::cout << "Mining stopped.\n";
+    }
+    
+    bool hasSolution() const { return system_solution_found.load(); }
+    uint32_t getWinningNonce() const { return system_winning_nonce; }
+    HashResult getWinningHash() const { return system_winning_hash; }
+    
+    void printStatus() const {
+        std::cout << "\n=== NDAS_963 System Status ===\n";
+        std::cout << "Mining Active: " << (system_mining_active ? "YES" : "NO") << "\n";
+        std::cout << "Solution Found: " << (system_solution_found ? "YES" : "NO") << "\n";
+        
+        uint32_t total_hash_count = 0;
+        int total_active_cores = 0;
+        
+        for (int i = 0; i < NDASConfig::NUM_CLUSTERS; i++) {
+            total_hash_count += clusters[i]->getTotalHashCount();
+            total_active_cores += clusters[i]->getActiveCores();
+            
+            std::cout << "Cluster " << i << " - Active Cores: " << clusters[i]->getActiveCores() 
+                     << ", Hash Count: " << clusters[i]->getTotalHashCount() << "\n";
+        }
+        
+        std::cout << "Total Active Cores: " << total_active_cores << "/" << NDASConfig::NDAS_CORE_COUNT << "\n";
+        std::cout << "Total Hash Count: " << total_hash_count << "\n";
+        std::cout << "Global Nonce Counter: 0x" << std::hex << global_nonce_counter << std::dec << "\n";
+        std::cout << "Average Temperature: 65°C (simulated)\n";
+        std::cout << "Power Consumption: 2500W (simulated)\n";
+        std::cout << "==============================\n\n";
+    }
+};
+
+// Example Usage and Test Function
+int main() {
+    std::cout << "NDAS_963 Bitcoin Mining Accelerator - C++ Implementation\n";
+    std::cout << "========================================================\n\n";
+    
+    // Create system instance
+    NDAS963System mining_system;
+    
+    // Example block header (simplified for demo)
+    BlockHeader test_block_header = {{
+        0x01000000, 0x00000000, 0x00000000, 0x00000000,
+        0x00000000, 0x00000000, 0x00000000, 0x00000000,
+        0x00000000, 0x00000000, 0x00000000, 0x00000000,
+        0x00000000, 0x00000000, 0x00000000, 0x00000000,
+        0x00000000, 0x00000000, 0x00000000, 0x12345678
+    }};
+    
+    // Example target hash (high difficulty for quick demo)
+    HashResult test_target = {{
+        0x0000FFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+        0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
+    }};
+    
+    // Start mining
+    mining_system.startMining(test_block_header, test_target);
+    
+    // Status monitoring loop
+    for (int i = 0; i < 10 && !mining_system.hasSolution(); i++) {
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        mining_system.printStatus();
+    }
+    
+    // Final status
+    mining_system.printStatus();
+    
+    if (mining_system.hasSolution()) {
+        std::cout << "Mining completed successfully!\n";
+        std::cout << "Final winning nonce: 0x" << std::hex << mining_system.getWinningNonce() << std::dec << "\n";
+    } else {
+        std::cout << "Mining test completed (no solution found in time limit).\n";
+    }
+    
+    mining_system.stopMining();
+    
+    std::cout << "\nNDAS_963 C++ Implementation completed.\n";
+    std::cout << "Ready for submission to IBM.\n";
+    
+    return 0;
+}

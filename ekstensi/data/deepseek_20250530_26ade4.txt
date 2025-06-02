@@ -1,0 +1,63 @@
+asu-container-system/
+├── src/
+│   ├── core/
+│   │   ├── containerManager.js        # Manajemen siklus hidup kontainer
+│   │   ├── imageBuilder.js            # Pembuatan image dari Git repo
+│   │   └── volumeManager.js           # Manajemen volume persistent
+│   ├── services/
+│   │   ├── gitService.js              # Layanan kloning dan validasi Git
+│   │   ├── securityService.js         # Validasi keamanan dan sanitasi
+│   │   ├── executionService.js        # Layanan eksekusi perintah
+│   │   └── storageService.js          # Manajemen penyimpanan .asu
+│   ├── api/
+│   │   ├── controllers/
+│   │   │   ├── containerController.js
+│   │   │   ├── executionController.js
+│   │   │   └── systemController.js
+│   │   └── routes/
+│   │       └── apiRoutes.js
+│   ├── utils/
+│   │   ├── logger.js                  # Sistem logging terpusat
+│   │   ├── config.js                  # Konfigurasi environment
+│   │   ├── crypto.js                  # Fungsi kriptografi
+│   │   └── scheduler.js               # Manajemen tugas terjadwal
+│   ├── models/
+│   │   ├── Container.js               # Model data kontainer
+│   │   ├── Execution.js               # Model data eksekusi
+│   │   └── SystemStats.js             # Model statistik sistem
+│   └── main.js                        # Entry point aplikasi
+├── storage/
+│   ├── containers/                    # File .asu
+│   │   ├── abcd123.asu
+│   │   └── efgh456.asu
+│   └── volumes/                       # Volume persistent
+│       ├── vol_abcd123/
+│       └── vol_efgh456/
+├── sandbox/
+│   ├── executions/                    # Eksekusi aktif
+│   │   ├── exec_7890/
+│   │   └── exec_7891/
+│   └── cache/                         # Cache dependensi
+├── dockerfiles/                       # Template Dockerfile
+│   ├── python.Dockerfile
+│   ├── node.Dockerfile
+│   └── git.Dockerfile
+├── tests/
+│   ├── unit/
+│   │   ├── services/
+│   │   └── core/
+│   └── integration/
+│       ├── api/
+│       └── execution/
+├── config/
+│   ├── default.json
+│   ├── development.json
+│   └── production.json
+├── scripts/
+│   ├── setup.sh                       # Skrip instalasi dependensi
+│   └── maintenance.sh                 # Skrip pemeliharaan
+├── .env                               # Environment variables
+├── Dockerfile                         # Dockerfile untuk build sistem
+├── docker-compose.yml
+├── package.json
+└── README.md

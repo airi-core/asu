@@ -1,0 +1,70 @@
+{
+  "name": "asu-container-system",
+  "version": "1.0.0",
+  "description": "ASU Container System - Advanced Git Repository Containerization and Execution Platform",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest",
+    "build": "echo 'No build step required for pure Node.js application'",
+    "lint": "eslint src/",
+    "format": "prettier --write src/",
+    "docker:build": "docker build -t asu-container-system .",
+    "docker:run": "docker run -p 3000:3000 -v $(pwd)/storage:/app/storage -v $(pwd)/sandbox:/app/sandbox -v $(pwd)/asu-container.db:/app/asu-container.db asu-container-system",
+    "migrate": "node src/migrations.js",
+    "maintenance": "node -e 'require(\"./src/index.js\").performMaintenance()'"
+  },
+  "keywords": [
+    "container",
+    "git",
+    "repository",
+    "sandboxing",
+    "nodejs",
+    "api",
+    "security"
+  ],
+  "author": {
+    "name": "Susanto",
+    "nim": "206181",
+    "university": "Hidden Investor",
+    "supervisor": "Suwardjono",
+    "rector": "Martin"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "validator": "^13.11.0",
+    "tar": "^6.2.0",
+    "tmp-promise": "^3.0.3",
+    "cors": "^2.8.5",
+    "morgan": "^1.10.0",
+    "compression": "^1.7.4",
+    "uuid": "^9.0.1",
+    "sqlite3": "^5.1.6",
+    "winston": "^3.11.0",
+    "node-cron": "^3.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "@types/node": "^20.10.6"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/asu-container-system.git"
+  },
+  "bugs": {
+    "url": "https://github.com/example/asu-container-system/issues"
+  },
+  "homepage": "https://github.com/example/asu-container-system#readme"
+}

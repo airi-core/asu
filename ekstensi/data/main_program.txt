@@ -1,0 +1,352 @@
+/*
+ * ASU Container System - Main Program
+ * 
+ * Nama: Susanto
+ * NIM: 206181
+ * Universitas: Hidden Investor
+ * Pembimbing: Suwardjono
+ * Rektor: Martin
+ * 
+ * Main program untuk sistem container ASU yang dapat:
+ * 1. Clone repository Git dan menyimpan dalam file .asu
+ * 2. Menjalankan program dari dalam container .asu
+ * 3. Menyediakan API endpoint untuk akses container
+ * 4. Menggunakan SHA256 untuk penamaan file
+ */
+
+#include "asu_container.hpp"
+#include <iostream>
+#include <string>
+#include <vector>
+#include <thread>
+#include <signal.h>
+
+// Global server instance for signal handling
+ASUAPIServer* global_server = nullptr;
+
+void signalHandler(int signum) {
+    std::cout << "\nShutting down ASU Container System..." << std::endl;
+    if (global_server) {
+        global_server->stopServer();
+    }
+    exit(signum);
+}
+
+void printUsage(const std::string& program_name) {
+    std::cout << "ASU Container System v1.0.0" << std::endl;
+    std::cout << "Nama: Susanto | NIM: 206181 | Universitas: Hidden Investor" << std::endl;
+    std::cout << "Pembimbing: Suwardjono | Rektor: Martin" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Usage: " << program_name << " [command] [options]" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Commands:" << std::endl;
+    std::cout << "  clone <git_url>          - Clone Git repository and create .asu container" << std::endl;
+    std::cout << "  load <asu_file>          - Load existing .asu container" << std::endl;
+    std::cout << "  run <asu_file> [cmd]     - Execute program in .asu container" << std::endl;
+    std::cout << "  server [port]            - Start API server (default port: 8080)" << std::endl;
+    std::cout << "  info <asu_file>          - Show container information" << std::endl;
+    std::cout << "  list <asu_file>          - List files in container" << std::endl;
+    std::cout << "  help                     - Show this help message" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Examples:" << std::endl;
+    std::cout << "  " << program_name << " clone https://github.com/torvalds/linux.git" << std::endl;
+    std::cout << "  " << program_name << " run abc123def456.asu" << std::endl;
+    std::cout << "  " << program_name << " server 9090" << std::endl;
+    std::cout << std::endl;
+}
+
+void printContainerInfo(ASUContainer& container) {
+    std::cout << "=== Container Information ===" << std::endl;
+    std::cout << "SHA256 Hash: " << container.getSHA256Hash() << std::endl;
+    std::cout << "Author: " << container.getMetadata("author") << std::endl;
+    std::cout << "NIM: " << container.getMetadata("nim") << std::endl;
+    std::cout << "University: " << container.getMetadata("university") << std::endl;
+    std::cout << "Git URL: " << container.getMetadata("git_url") << std::endl;
+    std::cout << "Created: " << container.getMetadata("created_at") << std::endl;
+    std::cout << "Clone Date: " << container.getMetadata("clone_date") << std::endl;
+    std::cout << "Version: " << container.getMetadata("version") << std::endl;
+    std::cout << "=============================" << std::endl;
+}
+
+int handleCloneCommand(const std::vector<std::string>& args) {
+    if (args.size() < 2) {
+        std::cerr << "Error: Git URL required for clone command" << std::endl;
+        return 1;
+    }
+    
+    std::string git_url = args[1];
+    std::cout << "Cloning repository: " << git_url << std::endl;
+    
+    ASUContainer container;
+    
+    if (!container.cloneAndStore(git_url)) {
+        std::cerr << "Error: Failed to clone repository" << std::endl;
+        return 1;
+    }
+    
+    std::string asu_filename = container.getSHA256Hash() + ".asu";
+    
+    if (!container.saveContainer(asu_filename)) {
+        std::cerr << "Error: Failed to save container" << std::endl;
+        return 1;
+    }
+    
+    std::cout << "Success! Container created: " << asu_filename << std::endl;
+    printContainerInfo(container);
+    
+    return 0;
+}
+
+int handleLoadCommand(const std::vector<std::string>& args) {
+    if (args.size() < 2) {
+        std::cerr << "Error: ASU file path required for load command" << std::endl;
+        return 1;
+    }
+    
+    std::string asu_file = args[1];
+    std::cout << "Loading container: " << asu_file << std::endl;
+    
+    ASUContainer container;
+    
+    if (!container.loadContainer(asu_file)) {
+        std::cerr << "Error: Failed to load container" << std::endl;
+        return 1;
+    }
+    
+    std::cout << "Success! Container loaded." << std::endl;
+    printContainerInfo(container);
+    
+    return 0;
+}
+
+int handleRunCommand(const std::vector<std::string>& args) {
+    if (args.size() < 2) {
+        std::cerr << "Error: ASU file path required for run command" << std::endl;
+        return 1;
+    }
+    
+    std::string asu_file = args[1];
+    std::string command = "";
+    std::vector<std::string> exec_args;
+    
+    // Parse command and arguments
+    if (args.size() > 2) {
+        command = args[2];
+        for (size_t i = 3; i < args.size(); ++i) {
+            exec_args.push_back(args[i]);
+        }
+    }
+    
+    std::cout << "Loading and executing container: " << asu_file << std::endl;
+    
+    ASUContainer container;
+    
+    if (!container.loadContainer(asu_file)) {
+        std::cerr << "Error: Failed to load container" << std::endl;
+        return 1;
+    }
+    
+    std::cout << "Container loaded successfully. Executing program..." << std::endl;
+    std::cout << "========================================" << std::endl;
+    
+    if (!container.executeProgram(command, exec_args)) {
+        std::cerr << "Error: Failed to execute program" << std::endl;
+        return 1;
+    }
+    
+    std::cout << "========================================" << std::endl;
+    std::cout << "Program execution completed." << std::endl;
+    
+    return 0;
+}
+
+int handleServerCommand(const std::vector<std::string>& args) {
+    int port = 8080;
+    
+    if (args.size() > 1) {
+        try {
+            port = std::stoi(args[1]);
+        } catch (const std::exception& e) {
+            std::cerr << "Error: Invalid port number" << std::endl;
+            return 1;
+        }
+    }
+    
+    std::cout << "Starting ASU API Server on port " << port << std::endl;
+    
+    ASUAPIServer server("http://localhost", port);
+    global_server = &server;
+    
+    // Setup signal handlers
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+    
+    if (!server.startServer()) {
+        std::cerr << "Error: Failed to start server" << std::endl;
+        return 1;
+    }
+    
+    std::cout << "Server started successfully!" << std::endl;
+    std::cout << "API Endpoints:" << std::endl;
+    std::cout << "  GET  /                    - List all containers" << std::endl;
+    std::cout << "  GET  /<sha256>.asu        - Get container info" << std::endl;
+    std::cout << "  POST /                    - Create new container (JSON: {\"git_url\": \"...\"})" << std::endl;
+    std::cout << "  PUT  /<sha256>.asu        - Execute program (JSON: {\"command\": \"...\", \"args\": [...]})" << std::endl;
+    std::cout << "  DEL  /<sha256>.asu        - Delete container" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Press Ctrl+C to stop server..." << std::endl;
+    
+    // Keep server running
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    
+    return 0;
+}
+
+int handleInfoCommand(const std::vector<std::string>& args) {
+    if (args.size() < 2) {
+        std::cerr << "Error: ASU file path required for info command" << std::endl;
+        return 1;
+    }
+    
+    std::string asu_file = args[1];
+    
+    ASUContainer container;
+    
+    if (!container.loadContainer(asu_file)) {
+        std::cerr << "Error: Failed to load container" << std::endl;
+        return 1;
+    }
+    
+    printContainerInfo(container);
+    
+    return 0;
+}
+
+int handleListCommand(const std::vector<std::string>& args) {
+    if (args.size() < 2) {
+        std::cerr << "Error: ASU file path required for list command" << std::endl;
+        return 1;
+    }
+    
+    std::string asu_file = args[1];
+    
+    ASUContainer container;
+    
+    if (!container.loadContainer(asu_file)) {
+        std::cerr << "Error: Failed to load container" << std::endl;
+        return 1;
+    }
+    
+    std::cout << "Files in container: " << asu_file << std::endl;
+    std::cout << "=========================" << std::endl;
+    
+    auto files = container.listFiles();
+    for (const auto& file : files) {
+        std::cout << file << std::endl;
+    }
+    
+    std::cout << "=========================" << std::endl;
+    std::cout << "Total files: " << files.size() << std::endl;
+    
+    return 0;
+}
+
+void runInteractiveMode() {
+    std::cout << "ASU Container System - Interactive Mode" << std::endl;
+    std::cout << "Type 'help' for available commands or 'exit' to quit." << std::endl;
+    std::cout << std::endl;
+    
+    std::string input;
+    while (true) {
+        std::cout << "asu> ";
+        std::getline(std::cin, input);
+        
+        if (input.empty()) continue;
+        if (input == "exit" || input == "quit") break;
+        
+        // Parse input into arguments
+        std::vector<std::string> args = ASUUtils::splitString(input, ' ');
+        if (args.empty()) continue;
+        
+        std::string command = args[0];
+        
+        if (command == "help") {
+            printUsage("asu");
+        } else if (command == "clone") {
+            handleCloneCommand(args);
+        } else if (command == "load") {
+            handleLoadCommand(args);
+        } else if (command == "run") {
+            handleRunCommand(args);
+        } else if (command == "info") {
+            handleInfoCommand(args);
+        } else if (command == "list") {
+            handleListCommand(args);
+        } else if (command == "server") {
+            std::cout << "Use 'asu server [port]' from command line to start server." << std::endl;
+        } else {
+            std::cout << "Unknown command: " << command << std::endl;
+            std::cout << "Type 'help' for available commands." << std::endl;
+        }
+        
+        std::cout << std::endl;
+    }
+    
+    std::cout << "Goodbye!" << std::endl;
+}
+
+int main(int argc, char* argv[]) {
+    try {
+        // Convert arguments to vector
+        std::vector<std::string> args;
+        for (int i = 0; i < argc; ++i) {
+            args.push_back(std::string(argv[i]));
+        }
+        
+        // Show header
+        std::cout << "ASU Container System v1.0.0" << std::endl;
+        std::cout << "Author: Susanto (NIM: 206181)" << std::endl;
+        std::cout << "University: Hidden Investor" << std::endl;
+        std::cout << std::endl;
+        
+        // If no arguments provided, run interactive mode
+        if (argc == 1) {
+            runInteractiveMode();
+            return 0;
+        }
+        
+        std::string command = args[1];
+        
+        if (command == "clone") {
+            return handleCloneCommand(args);
+        } else if (command == "load") {
+            return handleLoadCommand(args);
+        } else if (command == "run") {
+            return handleRunCommand(args);
+        } else if (command == "server") {
+            return handleServerCommand(args);
+        } else if (command == "info") {
+            return handleInfoCommand(args);
+        } else if (command == "list") {
+            return handleListCommand(args);
+        } else if (command == "help" || command == "--help" || command == "-h") {
+            printUsage(args[0]);
+            return 0;
+        } else {
+            std::cerr << "Error: Unknown command '" << command << "'" << std::endl;
+            printUsage(args[0]);
+            return 1;
+        }
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Fatal error: " << e.what() << std::endl;
+        return 1;
+    } catch (...) {
+        std::cerr << "Fatal error: Unknown exception occurred" << std::endl;
+        return 1;
+    }
+    
+    return 0;
+}

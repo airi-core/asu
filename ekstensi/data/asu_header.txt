@@ -1,0 +1,156 @@
+#ifndef ASU_CONTAINER_HPP
+#define ASU_CONTAINER_HPP
+
+/**
+ * ASU Container System - Git Native Implementation
+ * 
+ * Proyek Tugas Akhir Mahasiswa
+ * Nama: Susanto
+ * NIM: 206181  
+ * Universitas: Hidden Investor
+ * Pembimbing: Suwardjono
+ * Rektor: Martin
+ * 
+ * Sistem kontainer git native dengan implementasi keamanan dan isolasi lingkungan
+ * untuk memenuhi standar IBM dan spesifikasi akademis
+ */
+
+#include <string>
+#include <vector>
+#include <map>
+#include <memory>
+#include <fstream>
+#include <filesystem>
+#include <thread>
+#include <mutex>
+#include <openssl/sha.h>
+#include <json/json.h>
+#include <curl/curl.h>
+
+namespace ASUSystem {
+
+class SecurityValidator {
+private:
+    std::vector<std::string> blocked_commands;
+    std::vector<std::string> safe_extensions;
+    
+public:
+    SecurityValidator();
+    bool validateGitURL(const std::string& url);
+    bool validateCommand(const std::string& command);
+    std::string sanitizeInput(const std::string& input);
+    bool isRepositoryValid(const std::string& url);
+};
+
+class EnvironmentIsolator {
+private:
+    std::string sandbox_path;
+    std::map<std::string, std::string> environment_vars;
+    std::mutex isolation_mutex;
+    
+public:
+    EnvironmentIsolator(const std::string& base_path);
+    std::string createIsolatedEnvironment(const std::string& container_id);
+    bool setupVirtualEnvironment(const std::string& env_path);
+    void cleanupEnvironment(const std::string& env_path);
+    bool executeInSandbox(const std::string& command, const std::string& working_dir);
+};
+
+class ASUContainer {
+private:
+    std::string container_id;
+    std::string sha256_hash;
+    std::string file_path;
+    std::string git_url;
+    std::vector<char> container_data;
+    Json::Value metadata;
+    
+    std::unique_ptr<SecurityValidator> security;
+    std::unique_ptr<EnvironmentIsolator> isolator;
+    
+    static const size_t MAX_CONTAINER_SIZE = 1099511627776; // 1TB dalam bytes
+    
+public:
+    ASUContainer();
+    ~ASUContainer();
+    
+    std::string generateSHA256(const std::string& input);
+    bool createContainer(const std::string& git_url);
+    bool cloneRepository(const std::string& url, const std::string& target_path);
+    bool packageToASU(const std::string& source_path);
+    bool extractFromASU(const std::string& target_path);
+    bool executeProgram(const std::string& command);
+    bool validateContainerIntegrity();
+    
+    std::string getContainerPath() const { return file_path; }
+    std::string getContainerID() const { return container_id; }
+    size_t getContainerSize() const { return container_data.size(); }
+    
+    Json::Value getMetadata() const { return metadata; }
+    void setMetadata(const Json::Value& meta) { metadata = meta; }
+};
+
+class APIServer {
+private:
+    int port;
+    std::map<std::string, std::shared_ptr<ASUContainer>> containers;
+    std::mutex containers_mutex;
+    
+    struct HTTPResponse {
+        int status_code;
+        std::string content_type;
+        std::string body;
+        std::map<std::string, std::string> headers;
+    };
+    
+public:
+    APIServer(int server_port = 8080);
+    ~APIServer();
+    
+    bool startServer();
+    void stopServer();
+    
+    HTTPResponse handleGetContainer(const std::string& sha256_id);
+    HTTPResponse handlePostContainer(const std::string& git_url);
+    HTTPResponse handleExecuteContainer(const std::string& sha256_id, const std::string& command);
+    HTTPResponse handleDeleteContainer(const std::string& sha256_id);
+    
+    std::string createJSONResponse(const Json::Value& data, int status = 200);
+    std::string createErrorResponse(const std::string& error, int status = 400);
+};
+
+class ContainerManager {
+private:
+    std::string storage_path;
+    std::map<std::string, std::shared_ptr<ASUContainer>> active_containers;
+    std::mutex manager_mutex;
+    
+public:
+    ContainerManager(const std::string& base_storage_path);
+    ~ContainerManager();
+    
+    std::shared_ptr<ASUContainer> createNewContainer(const std::string& git_url);
+    std::shared_ptr<ASUContainer> loadContainer(const std::string& sha256_id);
+    bool deleteContainer(const std::string& sha256_id);
+    std::vector<std::string> listContainers();
+    
+    bool performMaintenance();
+    size_t getTotalStorageUsage();
+    void cleanupExpiredContainers();
+};
+
+// Fungsi utilitas global
+namespace Utils {
+    std::string getCurrentTimestamp();
+    bool createDirectoryRecursive(const std::string& path);
+    std::vector<std::string> splitString(const std::string& str, char delimiter);
+    std::string joinPath(const std::vector<std::string>& components);
+    bool fileExists(const std::string& path);
+    size_t getFileSize(const std::string& path);
+    std::string readFileContent(const std::string& path);
+    bool writeFileContent(const std::string& path, const std::string& content);
+}
+
+}
+
+#endif
