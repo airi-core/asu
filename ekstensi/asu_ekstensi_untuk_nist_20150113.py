@@ -14,13 +14,15 @@ asu_file_extension_architecture = {
             "Hidden partitioning untuk abstraksi user",
             "Positional delete files untuk soft delete",
             "engine OpenMP + Python multiprocessing",
-            "File pruning berdasarkan stats metadata"
+            "File pruning berdasarkan stats metadata",
+            "XML read/write support with XSD validation"  # Ditambahkan untuk mendukung XML
         ],
-        "dependencies": ["pyiceberg==0.4.1", "pyarrow>=12.0.1", "numpy<2.0"],
+        "dependencies": ["pyiceberg==0.4.1", "pyarrow>=12.0.1", "numpy<2.0", "lxml>=5.1.0"],  # Ditambahkan lxml
         "implementation": {
             "partition_spec": "days(event_time), bucket(16, research_id)",
             "optimization": "VACUUM SNAPSHOTS RETAIN 7 DAYS",
-            "compaction_strategy": "Berdasarkan ukuran file & umur data"
+            "compaction_strategy": "Berdasarkan ukuran file & umur data",
+            "xml_support": "XSD validation menggunakan lxml dengan fallback ke XML built-in"  # Implementasi XML
         }
     },
 
@@ -70,13 +72,15 @@ asu_file_extension_architecture = {
             "Emergency key revocation",
             "Key alias management untuk environment",
             "Client-side encryption hooks",
-            "KMS policy auto-generation"
+            "KMS policy auto-generation",
+            "Field-level encryption using envelope pattern"  # Ditambahkan enkripsi per field
         ],
         "dependencies": ["aws-encryption-sdk==2.3.1", "boto3>=1.28.45", "cryptography>=41.0.7"],
         "implementation": {
             "key_rotation_schedule": "Otomatis setiap 90 hari",
             "fallback_mechanism": "Kunci lama valid 7 hari pasca-rotasi",
-            "audit_log_integration": "CloudTrail + S3 bucket terenkripsi"
+            "audit_log_integration": "CloudTrail + S3 bucket terenkripsi",
+            "field_encryption": "Envelope encryption per field dengan unique IV"  # Implementasi enkripsi field
         }
     },
 
@@ -86,14 +90,13 @@ asu_file_extension_architecture = {
         "requirements": [
             "Backward/forward compatibility",
             "SHA-256 schema fingerprint",
-            "JSON internal → Dublin Core mapping auto",
+            "Full Dublin Core metadata set support dengan mapping otomatis",  # Dublin Core diperluas
             "HTTP API dengan OAuth2 authentication",
             "Metadata replication multi-AZ",
             "Point-in-time recovery 14 hari",
             "Schema validation menggunakan JSON Schema",
             "Schema references untuk nested types",
             "Protobuf schema support",
-            "JSON internal → Dublin Core mapping auto",
             "Schema diff visualization"
         ],
         "dependencies": ["fastavro>=1.8.2", "requests-oauthlib>=1.3.1", "protobuf>=4.25.3"],
@@ -103,7 +106,8 @@ asu_file_extension_architecture = {
                 "schema diff tols: Menggunakan deepdiff untuk visualisasi perubahan skema JSON antar versi",
                 "Hapus field: hanya jika deprecated >180 hari"
             ],
-            "replication_strategy": "Multi-AZ synchronous replication"
+            "replication_strategy": "Multi-AZ synchronous replication",
+            "dublin_core_mapping": "Automatic mapping dari internal JSON ke Dublin Core terms"  # Implementasi Dublin Core
         }
     },
 
@@ -409,13 +413,15 @@ asu_file_extension_architecture = {
             "Data consistency checks",
             "SHA-256 hash match",
             "Failover dry-run capability",
-            "Geosharding support"
+            "Geosharding support",
+            "Automated backup validation with checksum and sampling"  # Ditambahkan validasi backup
         ],
         "dependencies": ["aws-fis>=2.21.0", "boto3>=1.28.45", "dnspython>=2.4.2"],
         "implementation": {
             "regions": ["us-west-2", "eu-central-1", "ap-southeast-1"],
             "health_check_interval": "15 detik",
-            "failover_strategy": "Weighted routing berbasis latency + health check"
+            "failover_strategy": "Weighted routing berbasis latency + health check",
+            "backup_validation": "Verifikasi checksum harian dan uji restore sampling bulanan"  # Implementasi validasi
         }
     },
     
@@ -457,12 +463,14 @@ asu_file_extension_architecture = {
             "Regulatory report templating",
             "Compliance drift detection",
             "Regulatory change tracking",
-            "Data sovereignty enforcement"
+            "Data sovereignty enforcement",
+            "Legal hold enforcement for data and metadata"  # Ditambahkan legal hold
         ],
         "dependencies": ["prowler>=4.10.0", "cloud-custodian>=0.9.36"],
         "implementation": {
             "scan_schedule": "Harian + event-driven",
-            "evidence_chain": "Merkle tree dengan timestamp dari HSM"
+            "evidence_chain": "Merkle tree dengan timestamp dari HSM",
+            "legal_hold": "Dapat diaktifkan via API dengan audit trail dan WORM storage"  # Implementasi legal hold
         }
     },
     
