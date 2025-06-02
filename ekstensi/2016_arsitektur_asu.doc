@@ -1,0 +1,104 @@
+asu_project/
+├── .dockerignore                     # Mengabaikan file saat build Docker image
+├── .gitignore                        # Mengabaikan file dari Git version control
+├── Dockerfile                        # Instruksi untuk membangun Docker image aplikasi
+├── fly.toml                          # Konfigurasi deployment untuk Fly.io (atau platform serupa)
+├── LICENSE                           # File lisensi proyek
+├── pyproject.toml                    # Konfigurasi build dan dependensi proyek (PEP 518/621)
+├── README.md                         # Dokumentasi utama proyek
+├── requirements.txt                  # Daftar dependensi Python (bisa juga dikelola via pyproject.toml)
+├── unified_architecture_definition.py # File Python yang berisi definisi arsitektur terpadu ini
+│
+├── .github/                          # Konfigurasi terkait GitHub
+│   └── workflows/                    # Workflow GitHub Actions untuk CI/CD
+│       └── main_ci_cd.yml            # Pipeline CI/CD utama
+│
+├── api/                              # Semua kode terkait API (misalnya, FastAPI)
+│   ├── __init__.py                   # Inisialisasi package API
+│   ├── app.py                        # File utama aplikasi API (misalnya, inisialisasi FastAPI)
+│   ├── routes/                       # Direktori untuk modul-modul rute API
+│   │   ├── __init__.py               # Inisialisasi package routes
+│   │   ├── files.py                  # Endpoint API untuk operasi file
+│   │   └── queries.py                # Endpoint API untuk operasi query data
+│   └── middleware/                   # Direktori untuk middleware API
+│       ├── __init__.py               # Inisialisasi package middleware
+│       ├── auth.py                   # Middleware untuk autentikasi dan otorisasi
+│       └── protection.py             # Middleware untuk proteksi (DDoS, bot, dll.)
+│
+├── docs/                             # Dokumentasi proyek tambahan
+│   ├── architecture.md               # Deskripsi arsitektur tingkat tinggi
+│   └── modules/                      # Placeholder untuk dokumentasi detail per modul (jika diperlukan)
+│
+├── infra_config/                     # Konfigurasi Infrastructure as Code (IaC) dan Deployment
+│   ├── __init__.py                   # Inisialisasi package infra_config
+│   ├── terraform/                    # Konfigurasi Terraform untuk provisioning infrastruktur
+│   │   └── main.tf                   # File utama konfigurasi Terraform
+│   ├── deployment_pipelines/         # Konfigurasi untuk pipeline deployment dan GitOps
+│   │   ├── argocd_apps.yaml          # Definisi aplikasi ArgoCD untuk GitOps
+│   │   └── deploy_fly_io.py          # Skrip kustom untuk deployment (misalnya, ke Fly.io)
+│   └── disaster_recovery/            # Rencana dan skrip untuk Disaster Recovery
+│       └── dr_plan_and_scripts.py    # Implementasi rencana dan skrip DR
+│
+├── observability/                    # Modul dan konfigurasi untuk Observabilitas
+│   ├── __init__.py                   # Inisialisasi package observability
+│   ├── health_checker.py             # Implementasi health check untuk layanan
+│   ├── logging_config.py             # Konfigurasi logging terpusat dan terstruktur
+│   ├── metrics_collector.py          # Logika untuk pengumpulan dan eksposisi metrik
+│   └── tracing_setup.py              # Konfigurasi untuk distributed tracing
+│
+├── operations_scripts/               # Skrip untuk operasional, maintenance, dan pengujian khusus
+│   ├── __init__.py                   # Inisialisasi package operations_scripts
+│   ├── chaos_engineering/            # Skenario dan alat untuk Chaos Engineering
+│   │   ├── core_scenarios.py         # Definisi skenario chaos inti
+│   │   └── ci_cd_tests.yaml          # Konfigurasi tes chaos untuk CI/CD
+│   └── key_rotation_manager.py       # Skrip untuk manajemen dan rotasi kunci kriptografi
+│
+├── src/                              # Direktori utama untuk kode sumber aplikasi/library
+│   ├── __init__.py                   # Inisialisasi package src utama
+│   ├── core/                         # Modul inti fungsionalitas bisnis dan pemrosesan data
+│   │   ├── __init__.py               # Inisialisasi package core
+│   │   ├── file_format_manager.py    # Manajemen format file, parsing, encoding, validasi (gabungan)
+│   │   └── metadata_registry.py      # Registri dan manajemen metadata/skema
+│   ├── processing_engine/            # Mesin untuk analitik data dan orkestrasi workflow
+│   │   ├── __init__.py               # Inisialisasi package processing_engine
+│   │   ├── analyzer.py               # Engine untuk analisis statistik dan ML
+│   │   └── workflow.py               # Engine untuk orkestrasi workflow/pipeline
+│   ├── security/                     # Modul-modul terkait keamanan dan kriptografi
+│   │   ├── __init__.py               # Inisialisasi package security
+│   │   ├── access_controller.py      # Implementasi kontrol akses (ABAC, dll.)
+│   │   ├── compliance_checker.py     # Alat untuk pemeriksaan kepatuhan otomatis
+│   │   ├── crypto_services.py        # Layanan kriptografi umum (enkripsi, hashing klasik)
+│   │   └── pqc_services.py           # Layanan Kriptografi Pasca-Kuantum dan hashing SHA-256 dengan isolasi thread
+│   ├── storage/                      # Abstraksi dan implementasi untuk berbagai sistem penyimpanan
+│   │   ├── __init__.py               # Inisialisasi package storage
+│   │   ├── backup_system.py          # Sistem untuk backup dan recovery data
+│   │   ├── local_fs_adapter.py       # Adapter untuk penyimpanan filesystem lokal
+│   │   ├── object_storage_adapter.py # Adapter untuk layanan object storage (S3, GCS, Azure Blob)
+│   │   ├── query_cache_manager.py    # Manajemen cache untuk hasil query
+│   │   └── versioning_system.py      # Sistem untuk versioning data immutable
+│   ├── utils/                        # Utilitas umum yang digunakan di berbagai modul
+│   │   ├── __init__.py               # Inisialisasi package utils
+│   │   ├── checksum.py               # Fungsi terkait checksum
+│   │   ├── compression.py            # Fungsi terkait kompresi
+│   │   ├── indexer.py                # Fungsi terkait pengindeksan
+│   │   ├── key_manager.py            # Utilitas manajemen kunci internal (jika ada)
+│   │   ├── logger.py                 # Konfigurasi logger kustom (digunakan oleh observability)
+│   │   └── state_machine.py          # Utilitas untuk implementasi state machine
+│   └── virtualization/               # Modul terkait virtualisasi atau emulasi
+│       ├── __init__.py               # Inisialisasi package virtualization
+│       └── wine_executor.py          # Eksekutor untuk menjalankan aplikasi Windows via Wine
+│
+└── tests/                            # Direktori untuk semua jenis tes otomatis
+    ├── __init__.py                   # Inisialisasi package tests
+    ├── conftest.py                   # Konfigurasi global dan shared fixtures untuk PyTest
+    ├── integration/                  # Tes integrasi antar modul
+    │   └── ...                       # File-file tes integrasi
+    ├── performance/                  # Tes performa dan benchmark
+    │   ├── __init__.py
+    │   └── test_large_file_operations.py # Contoh tes performa operasi file besar
+    ├── security/                     # Tes keamanan (misalnya, skrip untuk audit, tes penetrasi)
+    │   └── ...                       # File-file atau placeholder untuk tes keamanan
+    └── unit/                         # Tes unit untuk setiap modul di src/
+        └── ...                       # File-file tes unit (mengikuti struktur src/)
+
+Penjelasan Struktur Direktori Terpadu:Root Level: Berisi file konfigurasi proyek tingkat tinggi (pyproject.toml, Dockerfile, requirements.txt), dokumentasi utama (README.md), file lisensi, dan file definisi arsitektur terpadu itu sendiri (unified_architecture_definition.py)..github/workflows/: Untuk otomatisasi CI/CD menggunakan GitHub Actions.api/: Memisahkan semua logika terkait penyajian API, termasuk definisi aplikasi utama (app.py), rute-rute spesifik, dan middleware.docs/: Untuk dokumentasi proyek yang lebih detail.infra_config/: Mengelompokkan semua konfigurasi terkait infrastruktur sebagai kode (Terraform), pipeline deployment (ArgoCD, skrip kustom), dan rencana disaster recovery.observability/: Modul-modul yang didedikasikan untuk pemantauan, logging, metrik, dan tracing.operations_scripts/: Skrip-skrip yang digunakan untuk operasional sistem, seperti chaos engineering dan rotasi kunci.src/: Direktori utama untuk semua kode sumber inti aplikasi atau pustaka. Ini dibagi lagi menjadi sub-package yang logis:core/: Fungsionalitas inti yang fundamental untuk pemrosesan dan manajemen data.processing_engine/: Komponen untuk analitik dan orkestrasi workflow.security/: Semua modul yang secara langsung berkaitan dengan implementasi keamanan, kriptografi, kontrol akses, dan kepatuhan.storage/: Abstraksi dan implementasi untuk interaksi dengan berbagai sistem penyimpanan.utils/: Utilitas pembantu yang bersifat generik dan dapat digunakan kembali.virtualization/: Modul spesifik untuk virtualisasi atau emulasi.tests/: Direktori terpusat untuk semua jenis pengujian otomatis, dipisahkan berdasarkan tipe (unit, integrasi, performa, keamanan). conftest.py digunakan untuk konfigurasi PyTest.Struktur ini bertujuan untuk mencapai modularitas yang baik, pemisahan tanggung jawab (separation of concerns), dan kemudahan navigasi serta pemeliharaan seiring dengan pertumbuhan proyek. Ini juga mencerminkan penggabungan konsep dari ketiga file sumber Anda ke dalam satu pandangan yang koheren.
