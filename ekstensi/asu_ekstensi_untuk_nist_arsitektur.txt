@@ -1,0 +1,49 @@
+nist_asu_ekstensi/
+├── core/
+│   ├── __init__.py
+│   ├── file_format.py
+│   ├── post_quantum_crypto.py
+│   ├── crypto.py
+│   └── metadata.py
+├── virtualization/
+│   ├── __init__.py
+│   └── wine_execution.py
+├── storage/
+│   ├── __init__.py
+│   ├── s3.py
+│   ├── versioning.py
+│   └── query_cache.py
+├── api/
+│   ├── __init__.py
+│   ├── endpoints/
+│   │   ├── __init__.py
+│   │   ├── files.py
+│   │   └── queries.py
+│   └── middleware/
+│       ├── __init__.py
+│       ├── auth.py
+│       └── protection.py
+├── observability/
+│   ├── __init__.py
+│   ├── metrics.py
+│   ├── tracing.py
+│   └── logging.py
+├── infra/
+│   ├── __init__.py
+│   ├── main.tf
+│   └── disaster_recovery.py
+├── security/
+│   ├── __init__.py
+│   ├── access_control.py
+│   └── compliance.py
+├── scripts/
+│   ├── __init__.py
+│   ├── key_rotation.py
+│   └── chaos_engineering.py
+├── deployments/
+│   ├── __init__.py
+│   ├── argocd_apps.yaml
+│   └── chaos_tests.yaml
+├── requirements.txt
+├── README.md
+└── main.py
