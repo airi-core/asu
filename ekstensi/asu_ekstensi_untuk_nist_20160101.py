@@ -1,4 +1,4 @@
-research_file_extension_architecture = {
+asu_file_extension_architecture = {
     # ===== CORE LAYER (PRODUCTION-GRADE) =====
     "core/file_format.py": {
         "description": "Format kolumnar dengan performa petabyte-scale",
@@ -23,6 +23,56 @@ research_file_extension_architecture = {
         }
     },
     
+
+"core/post_quantum_crypto.py": {
+
+"description": "Quantum-safe cryptography with massive parallelism",
+
+"production_proven": "LibOQS (Open Quantum Safe) & Intel IPP-Crypto",
+
+"requirements": [
+
+"Hybrid key exchange (Kyber + ECDH)",
+
+"Hybrid signatures (Dilithium + ECDSA)",
+
+"Parallel execution with thread pool (1024-9216 threads)",
+
+"CPU acceleration using AVX-512 and SHA-NI extensions",
+
+"NIST PQC Standard compliance (draft)",
+
+"Side-channel attack resistance",
+
+"Key encapsulation mechanism (KEM)",
+
+"Cryptographic agility",
+
+"Hardware acceleration support",
+
+"Thread-safe context management"
+
+],
+
+"dependencies": ["liboqs-python>=0.8.0", "intel-ipp-crypto>=2021.10.0", "numpy<2.0"],
+
+"implementation": {
+
+"key_exchange": "Kyber-1024 + ECDH secp384r1",
+
+"signature": "Dilithium5 + ECDSA secp384r1",
+
+"thread_pool": "Dynamic thread pool (min=1024, max=9216)",
+
+"acceleration": "AVX-512 for vectorization, SHA-NI for hashing",
+
+"compliance": "NIST SP 800-208, NIST PQC Project"
+
+}
+
+}
+
+},
     "core/crypto.py": {
         "description": "Enkripsi end-to-end dengan rotasi kunci zero-downtime",
         "production_proven": "AWS KMS Multi-Region Keys",
